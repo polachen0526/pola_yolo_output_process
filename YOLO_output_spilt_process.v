@@ -203,7 +203,7 @@ module YOLO_output_spilt_process#(
         reg  [2:0]                           C_Data_fix_AXI_FSM , N_Data_fix_AXI_FSM;   //keep the state change with axi
         reg  [9:0]                           Next_ARLEN;
         wire signed[127:0]                   INPUT_DATA;
-        reg  signed[15:0]                    output_answer_line[0:7];
+        wire signed[15:0]                    output_answer_line[0:5];
         reg  signed[15:0]                    Sram_data_input[0:7];
         reg                                  over_conf_threshold;
         reg  [2:0]                           CH_round_count;
@@ -257,26 +257,26 @@ module YOLO_output_spilt_process#(
         
         always@(*)begin
             if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==0)begin
-                Sram_write_en[0] = 1;
-                Sram_write_en[1] = 1;
-                Sram_write_en[2] = 1;
-                Sram_write_en[3] = 1;
-                Sram_write_en[4] = 1;
-                Sram_write_en[5] = 1;
+                Sram_write_en[0] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 1 : 1;
+                Sram_write_en[1] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 1 : 1;
+                Sram_write_en[2] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0 : 1;
+                Sram_write_en[3] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0 : 1;
+                Sram_write_en[4] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0 : 1;
+                Sram_write_en[5] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0 : 1;
             end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1)begin
-                Sram_write_en[0] = (C_Data_fix_FSM == keep_go) ? 0 : 1;
-                Sram_write_en[1] = (C_Data_fix_FSM == keep_go) ? 0 : 1;
-                Sram_write_en[2] = (C_Data_fix_FSM == keep_go) ? 1 : 0;
-                Sram_write_en[3] = (C_Data_fix_FSM == keep_go) ? 1 : 0;
-                Sram_write_en[4] = (C_Data_fix_FSM == keep_go) ? 1 : 0;
-                Sram_write_en[5] = (C_Data_fix_FSM == keep_go) ? 1 : 0;
+                Sram_write_en[0] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 1 : 0;
+                Sram_write_en[1] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 1 : 0;
+                Sram_write_en[2] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 1 : 1;
+                Sram_write_en[3] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 1 : 1;
+                Sram_write_en[4] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0 : 1;
+                Sram_write_en[5] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0 : 1;
             end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2)begin
-                Sram_write_en[0] = (C_Data_fix_FSM == keep_go) ? 1 : 0;
-                Sram_write_en[1] = (C_Data_fix_FSM == keep_go) ? 1 : 0;
-                Sram_write_en[2] = (C_Data_fix_FSM == keep_go) ? 0 : 1;
-                Sram_write_en[3] = (C_Data_fix_FSM == keep_go) ? 0 : 1;
-                Sram_write_en[4] = (C_Data_fix_FSM == keep_go) ? 0 : 1;
-                Sram_write_en[5] = (C_Data_fix_FSM == keep_go) ? 0 : 1;
+                Sram_write_en[0] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0 : 0;
+                Sram_write_en[1] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0 : 0;
+                Sram_write_en[2] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0 : 0;
+                Sram_write_en[3] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0 : 0;
+                Sram_write_en[4] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0 : 1;
+                Sram_write_en[5] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0 : 1;
             end else begin
                 Sram_write_en[0] = 0;
                 Sram_write_en[1] = 0;
@@ -289,26 +289,26 @@ module YOLO_output_spilt_process#(
 
         always@(*)begin
             if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==0)begin
-                Sram_data_input[0] = M_AXI_RDATA[15:0];
-                Sram_data_input[1] = M_AXI_RDATA[31:16];
-                Sram_data_input[2] = M_AXI_RDATA[47:32];
-                Sram_data_input[3] = M_AXI_RDATA[63:48];
-                Sram_data_input[4] = M_AXI_RDATA[79:64];
-                Sram_data_input[5] = M_AXI_RDATA[95:80];
+                Sram_data_input[0] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? M_AXI_RDATA[111:96]  : M_AXI_RDATA[15:0];
+                Sram_data_input[1] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? M_AXI_RDATA[127:112] : M_AXI_RDATA[31:16];
+                Sram_data_input[2] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0                    : M_AXI_RDATA[47:32];
+                Sram_data_input[3] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0                    : M_AXI_RDATA[63:48];
+                Sram_data_input[4] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0                    : M_AXI_RDATA[79:64];
+                Sram_data_input[5] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0                    : M_AXI_RDATA[95:80];
             end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1)begin
-                Sram_data_input[0] = (C_Data_fix_FSM == keep_go) ? 0 : M_AXI_RDATA[111:96];
-                Sram_data_input[1] = (C_Data_fix_FSM == keep_go) ? 0 : M_AXI_RDATA[127:112];
-                Sram_data_input[2] = (C_Data_fix_FSM == keep_go) ? M_AXI_RDATA[15:0]  : 0;
-                Sram_data_input[3] = (C_Data_fix_FSM == keep_go) ? M_AXI_RDATA[31:16] : 0;
-                Sram_data_input[4] = (C_Data_fix_FSM == keep_go) ? M_AXI_RDATA[47:32] : 0;
-                Sram_data_input[5] = (C_Data_fix_FSM == keep_go) ? M_AXI_RDATA[63:48] : 0;
+                Sram_data_input[0] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? M_AXI_RDATA[79:64]   : 0                 ; 
+                Sram_data_input[1] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? M_AXI_RDATA[95:80]   : 0                 ;
+                Sram_data_input[2] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? M_AXI_RDATA[111:96]  : M_AXI_RDATA[15:0] ;
+                Sram_data_input[3] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? M_AXI_RDATA[127:112] : M_AXI_RDATA[31:16];
+                Sram_data_input[4] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0                    : M_AXI_RDATA[47:32];
+                Sram_data_input[5] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0                    : M_AXI_RDATA[63:48];
             end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2)begin
-                Sram_data_input[0] = (C_Data_fix_FSM == keep_go) ? 0 : M_AXI_RDATA[79:64];
-                Sram_data_input[1] = (C_Data_fix_FSM == keep_go) ? 0 : M_AXI_RDATA[95:80];
-                Sram_data_input[2] = (C_Data_fix_FSM == keep_go) ? 0 : M_AXI_RDATA[111:96];
-                Sram_data_input[3] = (C_Data_fix_FSM == keep_go) ? 0 : M_AXI_RDATA[127:112];
-                Sram_data_input[4] = (C_Data_fix_FSM == keep_go) ? M_AXI_RDATA[15:0] : 0;
-                Sram_data_input[5] = (C_Data_fix_FSM == keep_go) ? M_AXI_RDATA[31:16] : 0;
+                Sram_data_input[0] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0                    : 0;
+                Sram_data_input[1] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0                    : 0;
+                Sram_data_input[2] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0                    : 0;
+                Sram_data_input[3] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0                    : 0;
+                Sram_data_input[4] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0                    : M_AXI_RDATA[15:0] ;
+                Sram_data_input[5] = (C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi) ? 0                    : M_AXI_RDATA[31:16];
             end else begin
                 Sram_data_input[0] = 0;
                 Sram_data_input[1] = 0;
@@ -639,20 +639,21 @@ module YOLO_output_spilt_process#(
         end
         
         //---------------------PUT YOUR SRAM IN HERE----------------\\
-        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_1(.clka(M_AXI_ACLK) , .wea(Sram_write_en[0]) , .addra(Sram_addr)  , .dina(Sram_data_input[0])  , .douta());
-        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_2(.clka(M_AXI_ACLK) , .wea(Sram_write_en[1]) , .addra(Sram_addr)  , .dina(Sram_data_input[1])  , .douta());
-        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_3(.clka(M_AXI_ACLK) , .wea(Sram_write_en[2]) , .addra(Sram_addr)  , .dina(Sram_data_input[2])  , .douta());
-        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_4(.clka(M_AXI_ACLK) , .wea(Sram_write_en[3]) , .addra(Sram_addr)  , .dina(Sram_data_input[3])  , .douta());
-        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_5(.clka(M_AXI_ACLK) , .wea(Sram_write_en[4]) , .addra(Sram_addr)  , .dina(Sram_data_input[4])  , .douta());
-        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_6(.clka(M_AXI_ACLK) , .wea(Sram_write_en[5]) , .addra(Sram_addr)  , .dina(Sram_data_input[5])  , .douta());
+        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_1(.clka(M_AXI_ACLK) , .wea(Sram_write_en[0]) , .addra(Sram_addr)  , .dina(Sram_data_input[0])  , .douta(output_answer_line[0]));
+        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_2(.clka(M_AXI_ACLK) , .wea(Sram_write_en[1]) , .addra(Sram_addr)  , .dina(Sram_data_input[1])  , .douta(output_answer_line[1]));
+        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_3(.clka(M_AXI_ACLK) , .wea(Sram_write_en[2]) , .addra(Sram_addr)  , .dina(Sram_data_input[2])  , .douta(output_answer_line[2]));
+        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_4(.clka(M_AXI_ACLK) , .wea(Sram_write_en[3]) , .addra(Sram_addr)  , .dina(Sram_data_input[3])  , .douta(output_answer_line[3]));
+        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_5(.clka(M_AXI_ACLK) , .wea(Sram_write_en[4]) , .addra(Sram_addr)  , .dina(Sram_data_input[4])  , .douta(output_answer_line[4]));
+        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_6(.clka(M_AXI_ACLK) , .wea(Sram_write_en[5]) , .addra(Sram_addr)  , .dina(Sram_data_input[5])  , .douta(output_answer_line[5]));
 
+        /*
         integer x;
         always@(*)begin
             for(x=0;x<8;x=x+1)begin
                 output_answer_line[x] =  INPUT_DATA[((x+1)*16-1)-:16];
             end
         end
-        
+        */
 
         //---------------------AW and W condition------------------\\
         reg [C_M_AXI_ADDR_WIDTH-1 : 0]      Next_M_AXI_AWADDR;
