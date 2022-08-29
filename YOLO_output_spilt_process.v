@@ -53,6 +53,13 @@ module YOLO_output_spilt_process#(
         parameter keep_go                   = 2'b00,
         parameter fill_up_0                 = 2'b01,
         parameter fill_up_1                 = 2'b10,
+        //-----------Data_fix_AXI_FSM-------------
+        parameter keep_go_axi               =3'b000,
+        parameter reset_sram_0_axi          =3'b001,
+        parameter fill_up_0_axi             =3'b010,
+        parameter reset_sram_1_axi          =3'b011,
+        parameter fill_up_1_axi             =3'b100,
+        //-----------------------------------------
         parameter address_to_arlen          = 4, //2**4 = 16
         parameter num_classes               = 1,
         parameter CH_round_total            = 3,
@@ -192,7 +199,8 @@ module YOLO_output_spilt_process#(
         reg  [7:0]                           Pre_node_count_1;
         reg  [7:0]                           Pre_Pre_node_count_1;
         reg  [2:0]                           C_AB_set_FSM , N_AB_set_FSM;
-        reg  [1:0]                           C_Data_fix_FSM , N_Data_fix_FSM;
+        reg  [1:0]                           C_Data_fix_FSM , N_Data_fix_FSM;           //until single is raise
+        reg  [2:0]                           C_Data_fix_AXI_FSM , N_Data_fix_AXI_FSM;   //keep the state change with axi
         reg  [9:0]                           Next_ARLEN;
         wire signed[127:0]                   INPUT_DATA;
         reg  signed[15:0]                    output_answer_line[0:7];
@@ -248,21 +256,21 @@ module YOLO_output_spilt_process#(
         end
         
         always@(*)begin
-            if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==0 && over_conf_threshold)begin
+            if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==0)begin
                 Sram_write_en[0] = 1;
                 Sram_write_en[1] = 1;
                 Sram_write_en[2] = 1;
                 Sram_write_en[3] = 1;
                 Sram_write_en[4] = 1;
                 Sram_write_en[5] = 1;
-            end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1 && over_conf_threshold)begin
+            end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1)begin
                 Sram_write_en[0] = (C_Data_fix_FSM == keep_go) ? 0 : 1;
                 Sram_write_en[1] = (C_Data_fix_FSM == keep_go) ? 0 : 1;
                 Sram_write_en[2] = (C_Data_fix_FSM == keep_go) ? 1 : 0;
                 Sram_write_en[3] = (C_Data_fix_FSM == keep_go) ? 1 : 0;
                 Sram_write_en[4] = (C_Data_fix_FSM == keep_go) ? 1 : 0;
                 Sram_write_en[5] = (C_Data_fix_FSM == keep_go) ? 1 : 0;
-            end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2 && over_conf_threshold)begin
+            end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2)begin
                 Sram_write_en[0] = (C_Data_fix_FSM == keep_go) ? 1 : 0;
                 Sram_write_en[1] = (C_Data_fix_FSM == keep_go) ? 1 : 0;
                 Sram_write_en[2] = (C_Data_fix_FSM == keep_go) ? 0 : 1;
@@ -280,21 +288,21 @@ module YOLO_output_spilt_process#(
         end
 
         always@(*)begin
-            if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==0 && over_conf_threshold)begin
+            if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==0)begin
                 Sram_data_input[0] = M_AXI_RDATA[15:0];
                 Sram_data_input[1] = M_AXI_RDATA[31:16];
                 Sram_data_input[2] = M_AXI_RDATA[47:32];
                 Sram_data_input[3] = M_AXI_RDATA[63:48];
                 Sram_data_input[4] = M_AXI_RDATA[79:64];
                 Sram_data_input[5] = M_AXI_RDATA[95:80];
-            end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1 && over_conf_threshold)begin
+            end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1)begin
                 Sram_data_input[0] = (C_Data_fix_FSM == keep_go) ? 0 : M_AXI_RDATA[111:96];
                 Sram_data_input[1] = (C_Data_fix_FSM == keep_go) ? 0 : M_AXI_RDATA[127:112];
                 Sram_data_input[2] = (C_Data_fix_FSM == keep_go) ? M_AXI_RDATA[15:0]  : 0;
                 Sram_data_input[3] = (C_Data_fix_FSM == keep_go) ? M_AXI_RDATA[31:16] : 0;
                 Sram_data_input[4] = (C_Data_fix_FSM == keep_go) ? M_AXI_RDATA[47:32] : 0;
                 Sram_data_input[5] = (C_Data_fix_FSM == keep_go) ? M_AXI_RDATA[63:48] : 0;
-            end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2 && over_conf_threshold)begin
+            end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2)begin
                 Sram_data_input[0] = (C_Data_fix_FSM == keep_go) ? 0 : M_AXI_RDATA[79:64];
                 Sram_data_input[1] = (C_Data_fix_FSM == keep_go) ? 0 : M_AXI_RDATA[95:80];
                 Sram_data_input[2] = (C_Data_fix_FSM == keep_go) ? 0 : M_AXI_RDATA[111:96];
@@ -339,12 +347,62 @@ module YOLO_output_spilt_process#(
 
         always@(posedge M_AXI_ACLK)begin
             if(rst)
-                Sram_addr <= 0;
-            else if(over_conf_threshold)
-                Sram_addr <= Sram_addr + 1;
+                C_Data_fix_AXI_FSM <= 0;
             else
-                Sram_addr <= Sram_addr;
+                C_Data_fix_AXI_FSM <= N_Data_fix_AXI_FSM;
         end
+
+        always@(*)begin
+            case (C_Data_fix_AXI_FSM)
+                keep_go_axi : begin
+                    if(N_Data_fix_FSM==fill_up_0 && M_AXI_RLAST)        N_Data_fix_AXI_FSM = reset_sram_0_axi;
+                    else if(N_Data_fix_FSM==fill_up_1 && M_AXI_RLAST)   N_Data_fix_AXI_FSM = reset_sram_1_axi;
+                    else                                                N_Data_fix_AXI_FSM = keep_go_axi;
+                end
+                reset_sram_0_axi : begin
+                    if(s_axi_start)                                     N_Data_fix_AXI_FSM = fill_up_0_axi;
+                    else                                                N_Data_fix_AXI_FSM = reset_sram_0_axi;
+                end
+                fill_up_0_axi : begin
+                    if(N_Data_fix_FSM!=fill_up_0 && M_AXI_RLAST)        N_Data_fix_AXI_FSM = keep_go_axi;
+                    else                                                N_Data_fix_AXI_FSM = fill_up_0_axi;
+                end
+                reset_sram_1_axi : begin
+                    if(s_axi_start)                                     N_Data_fix_AXI_FSM = fill_up_1_axi;
+                    else                                                N_Data_fix_AXI_FSM = reset_sram_1_axi;
+                end
+                fill_up_1_axi : begin
+                    if(N_Data_fix_FSM!=fill_up_1 && M_AXI_RLAST)        N_Data_fix_AXI_FSM = keep_go_axi;
+                    else                                                N_Data_fix_AXI_FSM = fill_up_1_axi;
+                end
+                default: begin
+                    N_Data_fix_AXI_FSM = keep_go_axi;
+                end
+            endcase
+        end
+
+        //--------------------------------SRAM ADDR CONTROL-----------------------------
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)begin
+                Sram_addr <= 0;
+            end else if(C_Data_fix_AXI_FSM==keep_go_axi && over_conf_threshold)begin
+                Sram_addr <= Sram_addr + 1;
+            end else if(C_Data_fix_AXI_FSM==reset_sram_0_axi)begin
+                Sram_addr <= 0;
+            end else if(C_Data_fix_AXI_FSM==reset_sram_1_axi)begin
+                Sram_addr <= index_0;
+            end else if(C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi)begin
+                if(C_AB_set_FSM==INST_layer_0 && CH_round_count==layer_0_address_pointer[pointer_index][(layer_0_address_pointer_bit-1)-:3]-1 && layer_0_x_mul_y_count==layer_0_address_pointer[pointer_index][(layer_0_address_pointer_bit-4)-:6]-Pre_Pre_node_count_0)
+                    Sram_addr <= Sram_addr + 1;
+                else if(C_AB_set_FSM==INST_layer_1 && CH_round_count==layer_1_address_pointer[pointer_index][(layer_1_address_pointer_bit-1)-:3]-1 && layer_1_x_mul_y_count==layer_1_address_pointer[pointer_index][(layer_1_address_pointer_bit-4)-:8]-Pre_Pre_node_count_1)
+                    Sram_addr <= Sram_addr + 1;    
+                else
+                    Sram_addr <= Sram_addr;
+            end else begin
+                Sram_addr <= Sram_addr;
+            end
+        end
+
         wire [2:0] output_asnwer_ch_round_count_0 = layer_0_address_pointer[pointer_index][(layer_0_address_pointer_bit-1)-:3];
         wire [5:0] output_asnwer_layer_0_x_mul_y_count = layer_0_address_pointer[pointer_index][(layer_0_address_pointer_bit-4)-:6];
         wire [2:0] output_asnwer_ch_round_count_1 = layer_1_address_pointer[pointer_index][(layer_1_address_pointer_bit-1)-:3];
