@@ -66,6 +66,8 @@ module YOLO_output_spilt_process#(
         parameter layer_0_address_pointer_bit = 9,
         parameter layer_1_address_pointer_bit = 11,
         parameter lyr_ch                    = (5 + num_classes),
+        parameter layer_0_border_size       = 8,
+        parameter layer_1_border_size       = 16,
         parameter layer_0_x_mul_y_total     = 64 - 1,
         parameter layer_1_x_mul_y_total     = 256 - 1
     )(
@@ -175,10 +177,6 @@ module YOLO_output_spilt_process#(
         reg en_axi_arvalid      , en_axi_awvalid;
 
         //----------------------state_condition------------------\\
-        wire   INST_state_finish;
-        wire   PROCESS_state_finish;
-        assign IRQ                  =   (Current_state==MAIN_finish_state) ? 1 : 0;
-        assign INST_state_finish    =   (C_AB_set_FSM==READ_data_finish) ? 1 : 0;
         wire   signed           [15:0] conf_0  , conf_1;
         assign conf_0               = s_axi_inst_3[15:0];
         assign conf_1               = s_axi_inst_3[31:16];
@@ -204,18 +202,20 @@ module YOLO_output_spilt_process#(
         reg  [2:0]                           C_Data_fix_AXI_FSM , N_Data_fix_AXI_FSM;   //keep the state change with axi
         reg  [9:0]                           Next_ARLEN;
         wire signed[127:0]                   INPUT_DATA;
-        wire signed[15:0]                    output_answer_line[0:5];
+        wire signed[15:0]                    output_answer_line[0:6];
         wire                                 fill_up_arrive_value_index_0;
         wire                                 fill_up_arrive_value_index_1;
-        reg  signed[15:0]                    Sram_data_input[0:7];
+        reg  signed[15:0]                    Sram_data_input[0:6];
         reg                                  over_conf_threshold;
         reg  [2:0]                           CH_round_count;
+        reg  [2:0]  layer_0_x_count , layer_0_y_count;
+        reg  [3:0]  layer_1_x_count , layer_1_y_count;
         reg  [5:0]  layer_0_x_mul_y_count; // 8*8
         reg  [7:0]  layer_1_x_mul_y_count; // 16*16
         reg  [layer_0_address_pointer_bit-1:0] layer_0_address_pointer [0:C_S_AXI_DATA_WIDTH-1];
         reg  [layer_1_address_pointer_bit-1:0] layer_1_address_pointer [0:C_S_AXI_DATA_WIDTH-1];
         reg  [4:0]  Sram_addr;
-        reg         Sram_write_en [0:5];
+        reg         Sram_write_en [0:6];
         assign INPUT_DATA               =    M_AXI_RDATA;
         assign M_AXI_ARVALID            =   (en_axi_arvalid && M_AXI_ARREADY);
         assign M_AXI_ARADDR             =    Next_M_AXI_ARADDR;
@@ -268,6 +268,7 @@ module YOLO_output_spilt_process#(
                 Sram_write_en[3] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
                 Sram_write_en[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
                 Sram_write_en[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
+                Sram_write_en[6] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
             end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1)begin
                 Sram_write_en[0] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 1 : (over_conf_threshold) ? 0 : 0;
                 Sram_write_en[1] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 1 : (over_conf_threshold) ? 0 : 0;
@@ -275,6 +276,7 @@ module YOLO_output_spilt_process#(
                 Sram_write_en[3] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 1 : (over_conf_threshold) ? 1 : 0;
                 Sram_write_en[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
                 Sram_write_en[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
+                Sram_write_en[6] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
             end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2)begin
                 Sram_write_en[0] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 0 : 0;
                 Sram_write_en[1] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 0 : 0;
@@ -282,6 +284,7 @@ module YOLO_output_spilt_process#(
                 Sram_write_en[3] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 0 : 0;
                 Sram_write_en[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
                 Sram_write_en[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
+                Sram_write_en[6] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
             end else begin
                 Sram_write_en[0] = 0;
                 Sram_write_en[1] = 0;
@@ -289,6 +292,7 @@ module YOLO_output_spilt_process#(
                 Sram_write_en[3] = 0;
                 Sram_write_en[4] = 0;
                 Sram_write_en[5] = 0;
+                Sram_write_en[6] = 0;
             end
         end
 
@@ -300,6 +304,7 @@ module YOLO_output_spilt_process#(
                 Sram_data_input[3] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[63:48] : 0;
                 Sram_data_input[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[79:64] : 0;
                 Sram_data_input[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[95:80] : 0;
+                Sram_data_input[6] = over_conf_threshold ? (C_AB_set_FSM==INST_layer_0 ? {{1'b0,layer_0_x_count} , {1'b0,layer_0_y_count}} : (C_AB_set_FSM==INST_layer_1 ? {layer_1_x_count , layer_1_y_count} : 0)) : 0;
             end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1)begin
                 Sram_data_input[0] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? M_AXI_RDATA[79:64]   : (over_conf_threshold) ? 0                  : 0; 
                 Sram_data_input[1] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? M_AXI_RDATA[95:80]   : (over_conf_threshold) ? 0                  : 0;
@@ -307,6 +312,7 @@ module YOLO_output_spilt_process#(
                 Sram_data_input[3] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? M_AXI_RDATA[127:112] : (over_conf_threshold) ? M_AXI_RDATA[31:16] : 0;
                 Sram_data_input[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[47:32] : 0;
                 Sram_data_input[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[63:48] : 0;
+                Sram_data_input[6] = over_conf_threshold ? (C_AB_set_FSM==INST_layer_0 ? {{1'b0,layer_0_x_count} , {1'b0,layer_0_y_count}} : (C_AB_set_FSM==INST_layer_1 ? {layer_1_x_count , layer_1_y_count} : 0)) : 0;
             end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2)begin
                 Sram_data_input[0] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? 0                  : 0;
                 Sram_data_input[1] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? 0                  : 0;
@@ -314,6 +320,7 @@ module YOLO_output_spilt_process#(
                 Sram_data_input[3] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? 0                  : 0;
                 Sram_data_input[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[15:0]  : 0;
                 Sram_data_input[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[31:16] : 0;
+                Sram_data_input[6] = over_conf_threshold ? (C_AB_set_FSM==INST_layer_0 ? {{1'b0,layer_0_x_count} , {1'b0,layer_0_y_count}} : (C_AB_set_FSM==INST_layer_1 ? {layer_1_x_count , layer_1_y_count} : 0)) : 0;
             end else begin
                 Sram_data_input[0] = 0;
                 Sram_data_input[1] = 0;
@@ -321,6 +328,7 @@ module YOLO_output_spilt_process#(
                 Sram_data_input[3] = 0;
                 Sram_data_input[4] = 0;
                 Sram_data_input[5] = 0;
+                Sram_data_input[6] = 0;
             end
         end
 
@@ -509,6 +517,24 @@ module YOLO_output_spilt_process#(
             else
                 CH_round_count <= CH_round_count;
         end
+        //----------------------------layer_0_x_mul_y_count----------------------------
+        always@(posedge M_AXI_ACLK)begin
+            if(rst || C_AB_set_FSM==SET_layer_1 || Current_state!=Next_state)
+                layer_0_x_count <= 0;
+            else if(M_AXI_RVALID && M_AXI_RREADY && C_AB_set_FSM==INST_layer_0)
+                layer_0_x_count <= layer_0_x_count + 1;
+            else
+                layer_0_x_count <= layer_0_x_count;
+        end
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst || C_AB_set_FSM==SET_layer_1 || Current_state!=Next_state)
+                layer_0_y_count <= 0;
+            else if(M_AXI_RVALID && M_AXI_RREADY && C_AB_set_FSM==INST_layer_0 && layer_0_x_count==layer_0_border_size-1)
+                layer_0_y_count <= layer_0_y_count + 1;
+            else
+                layer_0_y_count <= layer_0_y_count;
+        end
 
         always@(posedge M_AXI_ACLK)begin
             if(rst || C_AB_set_FSM==SET_layer_1 || Current_state!=Next_state)
@@ -517,6 +543,25 @@ module YOLO_output_spilt_process#(
                 layer_0_x_mul_y_count <= layer_0_x_mul_y_count + 1;
             else
                 layer_0_x_mul_y_count <= layer_0_x_mul_y_count;
+        end
+
+        //----------------------------layer_1_x_mul_y_count----------------------------
+        always@(posedge M_AXI_ACLK)begin
+            if(rst || C_AB_set_FSM==SET_layer_0 || Current_state!=Next_state)
+                layer_1_x_count <= 0;
+            else if(M_AXI_RVALID && M_AXI_RREADY && C_AB_set_FSM==INST_layer_1)
+                layer_1_x_count <= layer_1_x_count + 1;
+            else
+                layer_1_x_count <= layer_1_x_count;
+        end
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst || C_AB_set_FSM==SET_layer_0 || Current_state!=Next_state)
+                layer_1_y_count <= 0;
+            else if(M_AXI_RVALID && M_AXI_RREADY && C_AB_set_FSM==INST_layer_1 && layer_1_x_count==layer_1_border_size-1)
+                layer_1_y_count <= layer_1_y_count + 1;
+            else
+                layer_1_y_count <= layer_1_y_count;
         end
 
         always@(posedge M_AXI_ACLK)begin
@@ -528,6 +573,7 @@ module YOLO_output_spilt_process#(
                 layer_1_x_mul_y_count <= layer_1_x_mul_y_count;
         end
 
+        //----------------------------SET FSM----------------------------
         always@(posedge M_AXI_ACLK)begin
             if(rst)
                 C_AB_set_FSM <= SET_layer_0;
@@ -650,6 +696,7 @@ module YOLO_output_spilt_process#(
         POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_4(.clka(M_AXI_ACLK) , .wea(Sram_write_en[3]) , .addra(Sram_addr)  , .dina(Sram_data_input[3])  , .douta(output_answer_line[3]));
         POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_5(.clka(M_AXI_ACLK) , .wea(Sram_write_en[4]) , .addra(Sram_addr)  , .dina(Sram_data_input[4])  , .douta(output_answer_line[4]));
         POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_6(.clka(M_AXI_ACLK) , .wea(Sram_write_en[5]) , .addra(Sram_addr)  , .dina(Sram_data_input[5])  , .douta(output_answer_line[5]));
+        POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_7(.clka(M_AXI_ACLK) , .wea(Sram_write_en[6]) , .addra(Sram_addr)  , .dina(Sram_data_input[6])  , .douta(output_answer_line[6]));
 
         /*
         integer x;
@@ -667,6 +714,11 @@ module YOLO_output_spilt_process#(
         //----------------------latch_count_define-----------------------------
         reg en_axi_rcount       , en_axi_wcount;
 
+        //----------------------main state control----------------------------
+        wire   INST_state_finish;
+        wire   PROCESS_state_finish;
+        assign IRQ                  =   (Current_state==MAIN_finish_state) ? 1 : 0;
+        assign INST_state_finish    =   (C_AB_set_FSM==READ_data_finish) ? 1 : 0;
 
         //----------------------main-FSM---------------------------------------
         always@(posedge M_AXI_ACLK)begin
