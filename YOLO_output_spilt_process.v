@@ -49,6 +49,7 @@ module YOLO_output_spilt_process#(
         parameter PROCESS_idle_state        = 3'b000,
         parameter PROCESS_find_state        = 3'b001,
         parameter PROCESS_calc_state        = 3'b010,
+        parameter PROCESS_finish_state      = 3'b011,
         //-----------Data_fix_FSM-----------------
         parameter keep_go                   = 2'b00,
         parameter fill_up_0                 = 2'b01,
@@ -60,16 +61,16 @@ module YOLO_output_spilt_process#(
         parameter reset_sram_1_axi          =3'b011,
         parameter fill_up_1_axi             =3'b100,
         //-----------------------------------------
-        parameter address_to_arlen          = 4, //2**4 = 16
-        parameter num_classes               = 1,
-        parameter CH_round_total            = 3,
-        parameter layer_0_address_pointer_bit = 9,
-        parameter layer_1_address_pointer_bit = 11,
-        parameter lyr_ch                    = (5 + num_classes),
-        parameter layer_0_border_size       = 8,
-        parameter layer_1_border_size       = 16,
-        parameter layer_0_x_mul_y_total     = 64 - 1,
-        parameter layer_1_x_mul_y_total     = 256 - 1
+        parameter address_to_arlen              = 4, //2**4 = 16
+        parameter num_classes                   = 1,
+        parameter CH_round_total                = 3,
+        parameter layer_0_address_pointer_bit   = 9,
+        parameter layer_1_address_pointer_bit   = 11,
+        parameter lyr_ch                        = (5 + num_classes),
+        parameter layer_0_border_size           = 8,
+        parameter layer_1_border_size           = 16,
+        parameter layer_0_x_mul_y_total         = 64 - 1,
+        parameter layer_1_x_mul_y_total         = 256 - 1
     )(
         input   S_AXI_ACLK,
         input   s_axi_start,
@@ -83,7 +84,6 @@ module YOLO_output_spilt_process#(
         output  [1:0]                       s_axi_Werror,       //Trigger IRQ if error
         output  [C_S_AXI_DATA_WIDTH-1:0]    s_axi_Werror_addr,
         output  IRQ,
-
         // M_AXI-Full
         input                                    M_AXI_ACLK,
         input                                    M_AXI_ARESETN,
@@ -154,9 +154,12 @@ module YOLO_output_spilt_process#(
         //
         //
     );
-         //--------------------if you want make a ip use this!!------------------
+        //--------------------test_line-----------------------------
+        //wire    signed [15:0] float_number_reg;
+        //assign float_number_reg = float_number;
+
+        //--------------------if you want make a ip use this!!------------------
         /*wire rst = M_AXI_ARESETN;*/
-        
         
         //--------------------if you want sim use this!!------------------------
         reg s_axi_start_buffer;
@@ -304,7 +307,7 @@ module YOLO_output_spilt_process#(
                 Sram_data_input[3] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[63:48] : 0;
                 Sram_data_input[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[79:64] : 0;
                 Sram_data_input[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[95:80] : 0;
-                Sram_data_input[6] = over_conf_threshold ? (C_AB_set_FSM==INST_layer_0 ? {{1'b0,layer_0_x_count} , {1'b0,layer_0_y_count}} : (C_AB_set_FSM==INST_layer_1 ? {layer_1_x_count , layer_1_y_count} : 0)) : 0;
+                Sram_data_input[6] = over_conf_threshold ? (C_AB_set_FSM==INST_layer_0 ? {4'b0000 , {1'b0,layer_0_x_count} , {1'b0,layer_0_y_count}} : (C_AB_set_FSM==INST_layer_1 ? {4'b0001 , layer_1_x_count , layer_1_y_count} : 0)) : 0;
             end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1)begin
                 Sram_data_input[0] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? M_AXI_RDATA[79:64]   : (over_conf_threshold) ? 0                  : 0; 
                 Sram_data_input[1] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? M_AXI_RDATA[95:80]   : (over_conf_threshold) ? 0                  : 0;
@@ -312,7 +315,7 @@ module YOLO_output_spilt_process#(
                 Sram_data_input[3] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? M_AXI_RDATA[127:112] : (over_conf_threshold) ? M_AXI_RDATA[31:16] : 0;
                 Sram_data_input[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[47:32] : 0;
                 Sram_data_input[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[63:48] : 0;
-                Sram_data_input[6] = over_conf_threshold ? (C_AB_set_FSM==INST_layer_0 ? {{1'b0,layer_0_x_count} , {1'b0,layer_0_y_count}} : (C_AB_set_FSM==INST_layer_1 ? {layer_1_x_count , layer_1_y_count} : 0)) : 0;
+                Sram_data_input[6] = over_conf_threshold ? (C_AB_set_FSM==INST_layer_0 ? {4'b0000 , {1'b0,layer_0_x_count} , {1'b0,layer_0_y_count}} : (C_AB_set_FSM==INST_layer_1 ? {4'b0001 , layer_1_x_count , layer_1_y_count} : 0)) : 0;
             end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2)begin
                 Sram_data_input[0] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? 0                  : 0;
                 Sram_data_input[1] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? 0                  : 0;
@@ -320,7 +323,7 @@ module YOLO_output_spilt_process#(
                 Sram_data_input[3] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? 0                  : 0;
                 Sram_data_input[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[15:0]  : 0;
                 Sram_data_input[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[31:16] : 0;
-                Sram_data_input[6] = over_conf_threshold ? (C_AB_set_FSM==INST_layer_0 ? {{1'b0,layer_0_x_count} , {1'b0,layer_0_y_count}} : (C_AB_set_FSM==INST_layer_1 ? {layer_1_x_count , layer_1_y_count} : 0)) : 0;
+                Sram_data_input[6] = over_conf_threshold ? (C_AB_set_FSM==INST_layer_0 ? {4'b0000 , {1'b0,layer_0_x_count} , {1'b0,layer_0_y_count}} : (C_AB_set_FSM==INST_layer_1 ? {4'b0001 , layer_1_x_count , layer_1_y_count} : 0)) : 0;
             end else begin
                 Sram_data_input[0] = 0;
                 Sram_data_input[1] = 0;
@@ -392,28 +395,6 @@ module YOLO_output_spilt_process#(
                     N_Data_fix_AXI_FSM = keep_go_axi;
                 end
             endcase
-        end
-
-        //--------------------------------SRAM ADDR CONTROL-----------------------------
-        always@(posedge M_AXI_ACLK)begin
-            if(rst)begin
-                Sram_addr <= 0;
-            end else if(C_Data_fix_AXI_FSM==keep_go_axi && over_conf_threshold)begin
-                Sram_addr <= Sram_addr + 1;
-            end else if(C_Data_fix_AXI_FSM==reset_sram_0_axi)begin
-                Sram_addr <= 0;
-            end else if(C_Data_fix_AXI_FSM==reset_sram_1_axi)begin
-                Sram_addr <= index_0;
-            end else if(C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi)begin
-                if(C_AB_set_FSM==INST_layer_0 && fill_up_arrive_value_index_0)
-                    Sram_addr <= Sram_addr + 1;
-                else if(C_AB_set_FSM==INST_layer_1 && fill_up_arrive_value_index_1)
-                    Sram_addr <= Sram_addr + 1;    
-                else
-                    Sram_addr <= Sram_addr;
-            end else begin
-                Sram_addr <= Sram_addr;
-            end
         end
 
         wire [2:0] output_asnwer_ch_round_count_0 = layer_0_address_pointer[pointer_index][(layer_0_address_pointer_bit-1)-:3];
@@ -698,18 +679,96 @@ module YOLO_output_spilt_process#(
         POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_6(.clka(M_AXI_ACLK) , .wea(Sram_write_en[5]) , .addra(Sram_addr)  , .dina(Sram_data_input[5])  , .douta(output_answer_line[5]));
         POLA_YOLO_INPUT_SRAM_SINGLE_LRY_CHX100 M_7(.clka(M_AXI_ACLK) , .wea(Sram_write_en[6]) , .addra(Sram_addr)  , .dina(Sram_data_input[6])  , .douta(output_answer_line[6]));
 
-        /*
-        integer x;
-        always@(*)begin
-            for(x=0;x<8;x=x+1)begin
-                output_answer_line[x] =  INPUT_DATA[((x+1)*16-1)-:16];
-            end
-        end
-        */
+        
 
         //---------------------AW and W condition------------------\\
         reg [C_M_AXI_ADDR_WIDTH-1 : 0]      Next_M_AXI_AWADDR;
         assign M_AXI_AWVALID            = (en_axi_awvalid && M_AXI_AWREADY);
+
+        
+
+        //----------------------Process_FSM------------------------------------
+        //1. in process fsm �?? put data in sigmoid func and exp func
+        reg [2:0]C_process_state , N_process_state;
+        reg [2:0]C_process_six_state , N_process_six_state;
+        wire PROCESS_calc_state_finish;
+        wire tx_sigmoid_func_finish;
+        wire ty_sigmoid_func_finish;
+        wire tw_exp_func_finish;
+        wire th_exp_func_finish;
+        wire class_sigmoid_func_finish;
+
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)
+                C_process_six_state <= 0;
+            else
+                C_process_six_state <= N_process_six_state;
+        end
+
+        always@(*)begin
+            case (C_process_six_state)
+                0   :   begin
+                    if(C_process_state==PROCESS_calc_state) N_process_six_state = 1;
+                    else                                    N_process_six_state = 0;
+                end
+                1   :   begin
+                    if(tx_sigmoid_func_finish)              N_process_six_state = 2;
+                    else                                    N_process_six_state = 1;
+                end
+                2   :   begin
+                    if(ty_sigmoid_func_finish)              N_process_six_state = 3;
+                    else                                    N_process_six_state = 2;
+                end
+                3   :   begin
+                    if(tw_exp_func_finish)                  N_process_six_state = 4;
+                    else                                    N_process_six_state = 3;
+                end
+                4   :   begin
+                    if(th_exp_func_finish)                  N_process_six_state = 5;
+                    else                                    N_process_six_state = 4;
+                end
+                5   :   begin
+                    if(class_sigmoid_func_finish)           N_process_six_state = 0;
+                    else                                    N_process_six_state = 5;
+                end
+                default: begin
+                    N_process_six_state = 0;
+                end
+            endcase
+        end
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)
+                C_process_state <= PROCESS_idle_state;
+            else
+                C_process_state <= N_process_state;
+        end
+
+        always@(*)begin
+            case (C_process_state)
+                PROCESS_idle_state : begin
+                    if(Current_state==PROCESS_state)        N_process_state = PROCESS_find_state;
+                    else                                    N_process_state = PROCESS_idle_state;
+                end
+                PROCESS_find_state : begin
+                    if(Sram_addr==index_0 + index_1)        N_process_state = PROCESS_finish_state;
+                    else if(Current_state==PROCESS_state)   N_process_state = PROCESS_calc_state;
+                    else                                    N_process_state = PROCESS_find_state;
+                end
+                PROCESS_calc_state : begin
+                    if(PROCESS_calc_state_finish)           N_process_state = PROCESS_find_state;
+                    else                                    N_process_state = PROCESS_calc_state;
+                end
+                PROCESS_finish_state : begin
+                    N_process_state = PROCESS_finish_state;
+                end
+                default: begin
+                    N_process_state = PROCESS_idle_state;
+                end
+            endcase
+        end
+
 
         //----------------------latch_count_define-----------------------------
         reg en_axi_rcount       , en_axi_wcount;
@@ -831,4 +890,29 @@ module YOLO_output_spilt_process#(
                 en_axi_wcount <= en_axi_wcount;
         end
 
+        //--------------------------------SRAM ADDR CONTROL-----------------------------
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)begin
+                Sram_addr <= 0;
+            end else if(C_Data_fix_AXI_FSM==keep_go_axi && over_conf_threshold)begin
+                Sram_addr <= Sram_addr + 1;
+            end else if(C_Data_fix_AXI_FSM==reset_sram_0_axi)begin
+                Sram_addr <= 0;
+            end else if(C_Data_fix_AXI_FSM==reset_sram_1_axi)begin
+                Sram_addr <= index_0;
+            end else if(C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi)begin
+                if(C_AB_set_FSM==INST_layer_0 && fill_up_arrive_value_index_0)
+                    Sram_addr <= Sram_addr + 1;
+                else if(C_AB_set_FSM==INST_layer_1 && fill_up_arrive_value_index_1)
+                    Sram_addr <= Sram_addr + 1;    
+                else
+                    Sram_addr <= Sram_addr;
+            end else if(Current_state==PROCESS_state && C_process_state==PROCESS_idle_state)begin
+                Sram_addr <= 0;
+            end else if(Current_state==PROCESS_state && C_process_state==PROCESS_calc_state && PROCESS_calc_state_finish)begin
+                Sram_addr <= Sram_addr + 1;
+            end else begin
+                Sram_addr <= Sram_addr;
+            end
+        end
 endmodule
