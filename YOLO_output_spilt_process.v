@@ -688,7 +688,7 @@ module YOLO_output_spilt_process#(
         
 
         //----------------------Process_FSM------------------------------------
-        //1. in process fsm �?? put data in sigmoid func and exp func
+        //1. in process fsm �????? put data in sigmoid func and exp func
         reg [2:0]C_process_state , N_process_state;
         reg [2:0]C_process_six_state , N_process_six_state;
         wire PROCESS_calc_state_finish;
@@ -915,4 +915,33 @@ module YOLO_output_spilt_process#(
                 Sram_addr <= Sram_addr;
             end
         end
+
+        fpga_linear_sigmoid_func_layer #(.bias_shift_bit(10)) sigmoid_layer_0(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .input_data(),
+            .output_alpha(),
+            .output_bias()
+        );
+        fpga_linear_sigmoid_func_layer #(.bias_shift_bit(9)) sigmoid_layer_1(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .input_data(),
+            .output_alpha(),
+            .output_bias()
+        );
+        fpga_exp_lookuptable_func_layer #(.bias_shift_bit(10)) exp_layer_0(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .input_data(),
+            .output_alpha(),
+            .output_bias()
+        );
+        fpga_exp_lookuptable_func_layer #(.bias_shift_bit(9)) exp_layer_1(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .input_data(),
+            .output_alpha(),
+            .output_bias()
+        );
 endmodule
