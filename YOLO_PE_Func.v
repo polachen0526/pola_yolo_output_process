@@ -271,15 +271,13 @@ module fpga_exp_lookuptable_func_layer#(
     output  reg  signed  [data_bit-1:0] output_bias
 );
 
-    reg  signed [data_bit-1:0]output_alpha_wire;
-    reg  signed [data_bit-1:0]output_bias_wire;
     reg  signed [data_bit-1:0]output_alpha_find;
     reg  signed [data_bit-1:0]output_bias_find;
     wire signed [data_bit-1:0]output_bias_find_output;
     reg        [5:0]         range_signal;
 
-    exp_bias_choose_func_layer exp_layer(
-        .input_data(output_bias_wire),
+    exp_bias_choose_func_layer#(.bias_shift_bit(bias_shift_bit)) exp_layer(
+        .input_data(output_bias_find),
         .output_data(output_bias_find_output)
     );
 
@@ -288,18 +286,8 @@ module fpga_exp_lookuptable_func_layer#(
             output_alpha    <= 0;
             output_bias     <= 0;
         end else begin
-            output_alpha    <= output_alpha_wire;
+            output_alpha    <= output_alpha_find;
             output_bias     <= output_bias_find_output;
-        end
-    end
-
-    always@(posedge M_AXI_ACLK)begin
-        if(rst)begin
-            output_alpha_wire <= 0;
-            output_bias_wire   <= 0;
-        end else begin
-            output_alpha_wire <= output_alpha_find;
-            output_bias_wire  <= output_bias_find;
         end
     end
 
@@ -454,7 +442,7 @@ module fpga_exp_lookuptable_func_layer#(
                 output_bias_find  = 16'h0000;
             end
             default: begin
-                output_alpha_wire = 16'hxxxx;
+                output_alpha_find = 16'hxxxx;
                 output_bias_find  = 16'hxxxx;
             end
         endcase
@@ -595,7 +583,6 @@ module process_mul_element#(
     )(
         input               rst,
         input               M_AXI_ACLK,
-        input               PE_SHIFT_EN,
         input   signed      [data_bit-1:0] input_data,
         input   signed      [data_bit-1:0] input_alpha,
         output  reg   signed[data_bit-1:0] output_data
@@ -606,12 +593,8 @@ module process_mul_element#(
         always@(posedge M_AXI_ACLK)begin
             if(rst)begin
                 MUL_answer <= 0;
-            end else if(PE_SHIFT_EN)begin
-                MUL_answer <= (input_alpha * input_data)>>data_shift;
-            end else if(!PE_SHIFT_EN)begin
-                MUL_answer <= (input_alpha * input_data);
             end else begin
-                MUL_answer <= MUL_answer;
+                MUL_answer <= (input_alpha * input_data)>>data_shift;
             end
         end
 endmodule
