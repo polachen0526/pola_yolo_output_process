@@ -279,7 +279,7 @@ module fpga_exp_lookuptable_func_layer#(
     reg        [5:0]         range_signal;
 
     exp_bias_choose_func_layer exp_layer(
-        .input_data(output_bias_find),
+        .input_data(output_bias_wire),
         .output_data(output_bias_find_output)
     );
 
