@@ -32,8 +32,9 @@ module YOLO_output_spilt_process#(
         parameter C_M_AXI_BUSER_WIDTH	    = 1,
         //-----------MAIN FSM-----------------
         parameter IDLE_state                = 2'b00,
-        parameter INST_state                = 2'b01,
+        parameter PROCESS_inst_state        = 2'b01,
         parameter PROCESS_state             = 2'b10,
+        parameter PROCESS_write_state       = 2'b11,
         parameter MAIN_finish_state         = 2'b11,
         parameter READ_state                = 2'b01,
         parameter WRITE_state               = 2'b01,
@@ -264,7 +265,7 @@ module YOLO_output_spilt_process#(
         end
         
         always@(*)begin
-            if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==0)begin
+            if(Current_state==PROCESS_inst_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==0)begin
                 Sram_write_en[0] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 1 : (over_conf_threshold) ? 1 : 0;
                 Sram_write_en[1] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 1 : (over_conf_threshold) ? 1 : 0;
                 Sram_write_en[2] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
@@ -272,7 +273,7 @@ module YOLO_output_spilt_process#(
                 Sram_write_en[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
                 Sram_write_en[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
                 Sram_write_en[6] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
-            end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1)begin
+            end else if(Current_state==PROCESS_inst_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1)begin
                 Sram_write_en[0] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 1 : (over_conf_threshold) ? 0 : 0;
                 Sram_write_en[1] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 1 : (over_conf_threshold) ? 0 : 0;
                 Sram_write_en[2] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 1 : (over_conf_threshold) ? 1 : 0;
@@ -280,7 +281,7 @@ module YOLO_output_spilt_process#(
                 Sram_write_en[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
                 Sram_write_en[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
                 Sram_write_en[6] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 1 : 0;
-            end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2)begin
+            end else if(Current_state==PROCESS_inst_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2)begin
                 Sram_write_en[0] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 0 : 0;
                 Sram_write_en[1] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 0 : 0;
                 Sram_write_en[2] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0 : (over_conf_threshold) ? 0 : 0;
@@ -300,7 +301,7 @@ module YOLO_output_spilt_process#(
         end
 
         always@(*)begin
-            if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==0)begin
+            if(Current_state==PROCESS_inst_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==0)begin
                 Sram_data_input[0] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? M_AXI_RDATA[111:96]  : (over_conf_threshold) ? M_AXI_RDATA[15:0]  : 0;
                 Sram_data_input[1] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? M_AXI_RDATA[127:112] : (over_conf_threshold) ? M_AXI_RDATA[31:16] : 0;
                 Sram_data_input[2] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[47:32] : 0;
@@ -308,7 +309,7 @@ module YOLO_output_spilt_process#(
                 Sram_data_input[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[79:64] : 0;
                 Sram_data_input[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[95:80] : 0;
                 Sram_data_input[6] = over_conf_threshold ? (C_AB_set_FSM==INST_layer_0 ? {4'b0000 , {1'b0,layer_0_x_count} , {1'b0,layer_0_y_count}} : (C_AB_set_FSM==INST_layer_1 ? {4'b0001 , layer_1_x_count , layer_1_y_count} : 0)) : 0;
-            end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1)begin
+            end else if(Current_state==PROCESS_inst_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==1)begin
                 Sram_data_input[0] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? M_AXI_RDATA[79:64]   : (over_conf_threshold) ? 0                  : 0; 
                 Sram_data_input[1] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? M_AXI_RDATA[95:80]   : (over_conf_threshold) ? 0                  : 0;
                 Sram_data_input[2] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? M_AXI_RDATA[111:96]  : (over_conf_threshold) ? M_AXI_RDATA[15:0]  : 0;
@@ -316,7 +317,7 @@ module YOLO_output_spilt_process#(
                 Sram_data_input[4] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[47:32] : 0;
                 Sram_data_input[5] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? M_AXI_RDATA[63:48] : 0;
                 Sram_data_input[6] = over_conf_threshold ? (C_AB_set_FSM==INST_layer_0 ? {4'b0000 , {1'b0,layer_0_x_count} , {1'b0,layer_0_y_count}} : (C_AB_set_FSM==INST_layer_1 ? {4'b0001 , layer_1_x_count , layer_1_y_count} : 0)) : 0;
-            end else if(Current_state==INST_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2)begin
+            end else if(Current_state==PROCESS_inst_state && M_AXI_RVALID && M_AXI_RREADY && CH_round_count==2)begin
                 Sram_data_input[0] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? 0                  : 0;
                 Sram_data_input[1] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? 0                  : 0;
                 Sram_data_input[2] = ((C_Data_fix_AXI_FSM==fill_up_0_axi && fill_up_arrive_value_index_0) || (C_Data_fix_AXI_FSM==fill_up_1_axi && fill_up_arrive_value_index_1)) ? 0                    : (over_conf_threshold) ? 0                  : 0;
@@ -688,16 +689,39 @@ module YOLO_output_spilt_process#(
         
 
         //----------------------Process_FSM------------------------------------
-        //1. in process fsm �????? put data in sigmoid func and exp func
+        //1. in process fsm put data in sigmoid func and exp func
         reg [2:0]C_process_state , N_process_state;
         reg [2:0]C_process_six_state , N_process_six_state;
+        reg [3:0]class_count;
         wire PROCESS_calc_state_finish;
-        wire tx_sigmoid_func_finish;
-        wire ty_sigmoid_func_finish;
-        wire tw_exp_func_finish;
-        wire th_exp_func_finish;
+        wire tx_sigmoid_tw_exp_func_finish;
+        wire ty_sigmoid_th_exp_func_finish;
         wire class_sigmoid_func_finish;
+        reg  [1:0] sigmoid_exp_func_count;
+        assign tx_sigmoid_tw_exp_func_finish = (C_process_six_state==1 && sigmoid_exp_func_count==3) ? 1 : 0;
+        assign ty_sigmoid_th_exp_func_finish = (C_process_six_state==1 && sigmoid_exp_func_count==3) ? 1 : 0;
+        assign class_sigmoid_func_finish     = (C_process_six_state==1 && sigmoid_exp_func_count==3) ? 1 : 0;
 
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)
+                sigmoid_exp_func_count <= 0;
+            else if(sigmoid_exp_func_count==3)
+                sigmoid_exp_func_count <= 0;
+            else if(sigmoid_exp_func_count<3)
+                sigmoid_exp_func_count <= sigmoid_exp_func_count + 1;
+            else 
+                sigmoid_exp_func_count <= sigmoid_exp_func_count;
+        end
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst || C_process_six_state)
+                class_count <= 0;
+            else if(class_sigmoid_func_finish)
+                class_count <= class_count + 1;
+            else
+                class_count <= class_count;
+        end
 
         always@(posedge M_AXI_ACLK)begin
             if(rst)
@@ -709,28 +733,20 @@ module YOLO_output_spilt_process#(
         always@(*)begin
             case (C_process_six_state)
                 0   :   begin
-                    if(C_process_state==PROCESS_calc_state) N_process_six_state = 1;
-                    else                                    N_process_six_state = 0;
+                    if(C_process_state==PROCESS_calc_state)                           N_process_six_state = 1;
+                    else                                                              N_process_six_state = 0;
                 end
                 1   :   begin
-                    if(tx_sigmoid_func_finish)              N_process_six_state = 2;
-                    else                                    N_process_six_state = 1;
+                    if(tx_sigmoid_tw_exp_func_finish)                                 N_process_six_state = 2;
+                    else                                                              N_process_six_state = 1;
                 end
                 2   :   begin
-                    if(ty_sigmoid_func_finish)              N_process_six_state = 3;
-                    else                                    N_process_six_state = 2;
+                    if(ty_sigmoid_th_exp_func_finish)                                 N_process_six_state = 3;
+                    else                                                              N_process_six_state = 2;
                 end
                 3   :   begin
-                    if(tw_exp_func_finish)                  N_process_six_state = 4;
-                    else                                    N_process_six_state = 3;
-                end
-                4   :   begin
-                    if(th_exp_func_finish)                  N_process_six_state = 5;
-                    else                                    N_process_six_state = 4;
-                end
-                5   :   begin
-                    if(class_sigmoid_func_finish)           N_process_six_state = 0;
-                    else                                    N_process_six_state = 5;
+                    if(class_sigmoid_func_finish && class_count==num_classes)         N_process_six_state = 0;
+                    else                                                              N_process_six_state = 3;
                 end
                 default: begin
                     N_process_six_state = 0;
@@ -768,7 +784,53 @@ module YOLO_output_spilt_process#(
                 end
             endcase
         end
+        
+        //---------------------------------PE module--------------------------------
+        wire [Data_bit-1 : 0]sigmoid_output_alpha , sigmoid_output_bias;
+        wire [Data_bit-1 : 0]exp_output_alpha , exp_output_bias;
 
+        fpga_linear_sigmoid_func_layer #(.bias_shift_bit(10)) sigmoid_layer_0(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .input_data(output_answer_line[1]),
+            .output_alpha(sigmoid_output_alpha),
+            .output_bias(sigmoid_output_bias)
+        );
+        fpga_exp_lookuptable_func_layer #(.bias_shift_bit(10)) exp_layer_0(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .input_data(output_answer_line[3]),
+            .output_alpha(exp_output_alpha),
+            .output_bias(exp_output_bias)
+        );
+        fpga_linear_sigmoid_func_layer #(.bias_shift_bit(9)) sigmoid_layer_1(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .input_data(),
+            .output_alpha(),
+            .output_bias()
+        );
+        fpga_exp_lookuptable_func_layer #(.bias_shift_bit(9)) exp_layer_1(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .input_data(),
+            .output_alpha(),
+            .output_bias()
+        );
+        process_mul_element mul_element(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .input_data(),
+            .input_alpha(),
+            .output_data()
+        );
+        process_add_element add_element(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .input_data(),
+            .input_bias(),
+            .output_data()
+        );
 
         //----------------------latch_count_define-----------------------------
         reg en_axi_rcount       , en_axi_wcount;
@@ -776,6 +838,7 @@ module YOLO_output_spilt_process#(
         //----------------------main state control----------------------------
         wire   INST_state_finish;
         wire   PROCESS_state_finish;
+        wire   PROCESS_write_state_finish;
         assign IRQ                  =   (Current_state==MAIN_finish_state) ? 1 : 0;
         assign INST_state_finish    =   (C_AB_set_FSM==READ_data_finish) ? 1 : 0;
 
@@ -790,16 +853,20 @@ module YOLO_output_spilt_process#(
         always@( * )begin : main_state_combination
             case (Current_state)
                 IDLE_state      :   begin
-                    if(s_axi_start) Next_state = INST_state;
+                    if(s_axi_start) Next_state = PROCESS_inst_state;
                     else            Next_state = IDLE_state;
                 end
-                INST_state      :   begin
+                PROCESS_inst_state      :   begin
                     if(INST_state_finish)    Next_state = PROCESS_state;
-                    else                     Next_state = INST_state;
+                    else                     Next_state = PROCESS_inst_state;
                 end
                 PROCESS_state   :   begin
-                    if(PROCESS_state_finish) Next_state = MAIN_finish_state;
+                    if(PROCESS_state_finish) Next_state = PROCESS_write_state;
                     else                     Next_state = PROCESS_state;
+                end
+                PROCESS_write_state     :   begin
+                    if(PROCESS_write_state_finish)  Next_state = MAIN_finish_state;
+                    else                            Next_state = PROCESS_write_state;
                 end
                 MAIN_finish_state      :   begin
                     Next_state = IDLE_state;
@@ -819,8 +886,8 @@ module YOLO_output_spilt_process#(
         always@(*)begin : read_state_combination
             case (CREAD_state)
                 IDLE_state  :   begin
-                    if(Current_state==INST_state && !IRQ)   NREAD_state = READ_state;
-                    else                                    NREAD_state = IDLE_state;
+                    if(Current_state==PROCESS_inst_state && !IRQ)   NREAD_state = READ_state;
+                    else                                            NREAD_state = IDLE_state;
                 end
                 READ_state  :   begin
                     if(M_AXI_RLAST && M_AXI_RVALID && M_AXI_RREADY) NREAD_state = IDLE_state;
@@ -843,12 +910,12 @@ module YOLO_output_spilt_process#(
         always@(*)begin : write_state_combination
             case (CWRITE_state)
             IDLE_state  :   begin
-                if(Current_state==PROCESS_state && !IRQ)    NWRITE_state = WRITE_state;
-                else                                        NWRITE_state = IDLE_state;
+                if(Current_state==PROCESS_write_state && !IRQ)      NWRITE_state = WRITE_state;
+                else                                                NWRITE_state = IDLE_state;
             end
             WRITE_state :   begin
-                if(M_AXI_WLAST && M_AXI_WVALID && M_AXI_WREADY) NWRITE_state = IDLE_state;
-                else                                            NWRITE_state = WRITE_state;
+                if(M_AXI_WLAST && M_AXI_WVALID && M_AXI_WREADY)     NWRITE_state = IDLE_state;
+                else                                                NWRITE_state = WRITE_state;
             end
                 default: begin
                     NWRITE_state = IDLE_state;
@@ -894,54 +961,34 @@ module YOLO_output_spilt_process#(
         always@(posedge M_AXI_ACLK)begin
             if(rst)begin
                 Sram_addr <= 0;
-            end else if(C_Data_fix_AXI_FSM==keep_go_axi && over_conf_threshold)begin
-                Sram_addr <= Sram_addr + 1;
-            end else if(C_Data_fix_AXI_FSM==reset_sram_0_axi)begin
-                Sram_addr <= 0;
-            end else if(C_Data_fix_AXI_FSM==reset_sram_1_axi)begin
-                Sram_addr <= index_0;
-            end else if(C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi)begin
-                if(C_AB_set_FSM==INST_layer_0 && fill_up_arrive_value_index_0)
+            end else if(Current_state==PROCESS_inst_state)begin
+                if(C_Data_fix_AXI_FSM==keep_go_axi && over_conf_threshold)begin
                     Sram_addr <= Sram_addr + 1;
-                else if(C_AB_set_FSM==INST_layer_1 && fill_up_arrive_value_index_1)
-                    Sram_addr <= Sram_addr + 1;    
-                else
-                    Sram_addr <= Sram_addr;
-            end else if(Current_state==PROCESS_state && C_process_state==PROCESS_idle_state)begin
-                Sram_addr <= 0;
-            end else if(Current_state==PROCESS_state && C_process_state==PROCESS_calc_state && PROCESS_calc_state_finish)begin
-                Sram_addr <= Sram_addr + 1;
+                end else if(C_Data_fix_AXI_FSM==reset_sram_0_axi)begin
+                    Sram_addr <= 0;
+                end else if(C_Data_fix_AXI_FSM==reset_sram_1_axi)begin
+                    Sram_addr <= index_0;
+                end else if(C_Data_fix_AXI_FSM==fill_up_0_axi || C_Data_fix_AXI_FSM==fill_up_1_axi)begin
+                    if(C_AB_set_FSM==INST_layer_0 && fill_up_arrive_value_index_0)
+                        Sram_addr <= Sram_addr + 1;
+                    else if(C_AB_set_FSM==INST_layer_1 && fill_up_arrive_value_index_1)
+                        Sram_addr <= Sram_addr + 1;    
+                    else
+                        Sram_addr <= Sram_addr;
+                end else begin
+                    Sram_addr <= Sram_addr;    
+                end
+            end else if (Current_state==PROCESS_state)begin
+                if(C_process_state==PROCESS_idle_state)begin
+                    Sram_addr <= 0;
+                end else if(C_process_state==PROCESS_calc_state && PROCESS_calc_state_finish)begin
+                    Sram_addr <= Sram_addr + 1;
+                end else begin
+                    Sram_addr <= Sram_addr;    
+                end
             end else begin
                 Sram_addr <= Sram_addr;
             end
         end
 
-        fpga_linear_sigmoid_func_layer #(.bias_shift_bit(10)) sigmoid_layer_0(
-            .M_AXI_ACLK(M_AXI_ACLK),
-            .rst(rst),
-            .input_data(),
-            .output_alpha(),
-            .output_bias()
-        );
-        fpga_linear_sigmoid_func_layer #(.bias_shift_bit(9)) sigmoid_layer_1(
-            .M_AXI_ACLK(M_AXI_ACLK),
-            .rst(rst),
-            .input_data(),
-            .output_alpha(),
-            .output_bias()
-        );
-        fpga_exp_lookuptable_func_layer #(.bias_shift_bit(10)) exp_layer_0(
-            .M_AXI_ACLK(M_AXI_ACLK),
-            .rst(rst),
-            .input_data(),
-            .output_alpha(),
-            .output_bias()
-        );
-        fpga_exp_lookuptable_func_layer #(.bias_shift_bit(9)) exp_layer_1(
-            .M_AXI_ACLK(M_AXI_ACLK),
-            .rst(rst),
-            .input_data(),
-            .output_alpha(),
-            .output_bias()
-        );
 endmodule
