@@ -698,17 +698,17 @@ module YOLO_output_spilt_process#(
         wire ty_sigmoid_th_exp_func_finish;
         wire class_sigmoid_func_finish;
         reg  [1:0] sigmoid_exp_func_count;
-        assign tx_sigmoid_tw_exp_func_finish = (C_process_six_state==1 && sigmoid_exp_func_count==3) ? 1 : 0;
-        assign ty_sigmoid_th_exp_func_finish = (C_process_six_state==1 && sigmoid_exp_func_count==3) ? 1 : 0;
-        assign class_sigmoid_func_finish     = (C_process_six_state==1 && sigmoid_exp_func_count==3) ? 1 : 0;
+        assign tx_sigmoid_tw_exp_func_finish = (C_process_six_state==1 && sigmoid_exp_func_count==2) ? 1 : 0;
+        assign ty_sigmoid_th_exp_func_finish = (C_process_six_state==1 && sigmoid_exp_func_count==2) ? 1 : 0;
+        assign class_sigmoid_func_finish     = (C_process_six_state==1 && sigmoid_exp_func_count==2) ? 1 : 0;
 
 
         always@(posedge M_AXI_ACLK)begin
             if(rst)
                 sigmoid_exp_func_count <= 0;
-            else if(sigmoid_exp_func_count==3)
+            else if(sigmoid_exp_func_count==2)
                 sigmoid_exp_func_count <= 0;
-            else if(sigmoid_exp_func_count<3)
+            else if(sigmoid_exp_func_count<2)
                 sigmoid_exp_func_count <= sigmoid_exp_func_count + 1;
             else 
                 sigmoid_exp_func_count <= sigmoid_exp_func_count;
@@ -787,9 +787,12 @@ module YOLO_output_spilt_process#(
         
         //---------------------------------PE module--------------------------------
         wire [Data_bit-1 : 0]sigmoid_output_alpha , sigmoid_output_bias;
-        wire [Data_bit-1 : 0]exp_output_alpha , exp_output_bias;
+        wire [Data_bit-1 : 0]exp_output_alpha; 
+        wire [Data_bit-1 : 0]exp_output_bias ;
+        wire [3:0]repair_bit;
         reg  [Data_bit-1 : 0]input_data_control_sigmoid,input_data_control_exp;
-        
+        assign repair_bit = output_answer_line[6][11-:4];//index_register
+
         always@(*)begin
             if(C_process_six_state == 1)begin
                 input_data_control_sigmoid  = output_answer_line[0];
@@ -806,33 +809,21 @@ module YOLO_output_spilt_process#(
             end
         end
         
-        fpga_linear_sigmoid_func_layer #(.bias_shift_bit(10)) sigmoid_layer_0(
+        fpga_linear_sigmoid_func_layer #(.bias_shift_bit(10)) sigmoid_layer(
             .M_AXI_ACLK(M_AXI_ACLK),
             .rst(rst),
+            .repair_bit(repair_bit),
             .input_data(input_data_control_sigmoid),
             .output_alpha(sigmoid_output_alpha),
             .output_bias(sigmoid_output_bias)
         );
-        fpga_exp_lookuptable_func_layer #(.bias_shift_bit(10)) exp_layer_0(
+        fpga_exp_lookuptable_func_layer #(.bias_shift_bit(10)) exp_layer(
             .M_AXI_ACLK(M_AXI_ACLK),
             .rst(rst),
+            .repair_bit(repair_bit),
             .input_data(input_data_control_exp),
             .output_alpha(exp_output_alpha),
             .output_bias(exp_output_bias)
-        );
-        fpga_linear_sigmoid_func_layer #(.bias_shift_bit(9)) sigmoid_layer_1(
-            .M_AXI_ACLK(M_AXI_ACLK),
-            .rst(rst),
-            .input_data(),
-            .output_alpha(),
-            .output_bias()
-        );
-        fpga_exp_lookuptable_func_layer #(.bias_shift_bit(9)) exp_layer_1(
-            .M_AXI_ACLK(M_AXI_ACLK),
-            .rst(rst),
-            .input_data(),
-            .output_alpha(),
-            .output_bias()
         );
         process_mul_element mul_element(
             .M_AXI_ACLK(M_AXI_ACLK),
