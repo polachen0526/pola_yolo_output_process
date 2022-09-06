@@ -124,60 +124,60 @@ module fpga_linear_sigmoid_func_layer#(
                 output_bias_wire  = 0;
             end
             1   :   begin
-                output_alpha_wire = (data_negative_8_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_negative_8_bias_reg>>repair_bit);
+                output_alpha_wire = (data_negative_8_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_negative_8_bias_reg>>>repair_bit);
             end
             2   :   begin
-                output_alpha_wire = (data_negative_4_point_5_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_negative_4_point_5_bias_reg>>repair_bit);
+                output_alpha_wire = (data_negative_4_point_5_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_negative_4_point_5_bias_reg>>>repair_bit);
             end
             3   :   begin
-                output_alpha_wire = (data_negative_3_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_negative_3_bias_reg>>repair_bit);
+                output_alpha_wire = (data_negative_3_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_negative_3_bias_reg>>>repair_bit);
             end
             4   :   begin
-                output_alpha_wire = (data_negative_2_point_5_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_negative_2_point_5_bias_reg>>repair_bit);
+                output_alpha_wire = (data_negative_2_point_5_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_negative_2_point_5_bias_reg>>>repair_bit);
             end
             5   :   begin
-                output_alpha_wire = (data_negative_2_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_negative_2_bias_reg>>repair_bit);
+                output_alpha_wire = (data_negative_2_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_negative_2_bias_reg>>>repair_bit);
             end
             6   :   begin
-                output_alpha_wire = (data_negative_1_point_5_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_negative_1_point_5_bias_reg>>repair_bit);
+                output_alpha_wire = (data_negative_1_point_5_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_negative_1_point_5_bias_reg>>>repair_bit);
             end
             7   :   begin
-                output_alpha_wire = (data_negative_1_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_negative_1_bias_reg>>repair_bit);
+                output_alpha_wire = (data_negative_1_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_negative_1_bias_reg>>>repair_bit);
             end
             8   :   begin
-                output_alpha_wire = (data_positive_1_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_positive_1_bias_reg>>repair_bit);
+                output_alpha_wire = (data_positive_1_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_positive_1_bias_reg>>>repair_bit);
             end
             9   :   begin
-                output_alpha_wire = (data_positive_1_point_5_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_positive_1_point_5_bias_reg>>repair_bit);
+                output_alpha_wire = (data_positive_1_point_5_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_positive_1_point_5_bias_reg>>>repair_bit);
             end
             10  :   begin
-                output_alpha_wire = (data_positive_2_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_positive_2_bias_reg>>repair_bit);
+                output_alpha_wire = (data_positive_2_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_positive_2_bias_reg>>>repair_bit);
             end
             11  :   begin
-                output_alpha_wire = (data_positive_2_point_5_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_positive_2_point_5_bias_reg>>repair_bit);
+                output_alpha_wire = (data_positive_2_point_5_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_positive_2_point_5_bias_reg>>>repair_bit);
             end
             12  :   begin
-                output_alpha_wire = (data_positive_3_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_positive_3_bias_reg>>repair_bit);
+                output_alpha_wire = (data_positive_3_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_positive_3_bias_reg>>>repair_bit);
             end
             13  :   begin
-                output_alpha_wire = (data_positive_4_point_5_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_positive_4_point_5_bias_reg>>repair_bit);
+                output_alpha_wire = (data_positive_4_point_5_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_positive_4_point_5_bias_reg>>>repair_bit);
             end
             14  :   begin
-                output_alpha_wire = (data_positive_8_alpha_reg>>repair_bit);
-                output_bias_wire  = (data_positive_8_bias_reg>>repair_bit);
+                output_alpha_wire = (data_positive_8_alpha_reg>>>repair_bit);
+                output_bias_wire  = (data_positive_8_bias_reg>>>repair_bit);
             end
             default: begin
                 output_alpha_wire = 0;
@@ -187,35 +187,35 @@ module fpga_linear_sigmoid_func_layer#(
     end
 
     always@(posedge M_AXI_ACLK)begin
-        if(input_data<=(range_value_negative_8_reg>>repair_bit))
+        if(input_data<=(range_value_negative_8_reg>>>repair_bit))
             range_signal <= 0;
-        else if(input_data>(range_value_negative_8_reg>>repair_bit) && input_data<=(range_value_negative_4_point_5_reg>>repair_bit))
+        else if(input_data>(range_value_negative_8_reg>>>repair_bit) && input_data<=(range_value_negative_4_point_5_reg>>>repair_bit))
             range_signal <= 1;
-        else if(input_data>(range_value_negative_4_point_5_reg>>repair_bit) && input_data<=(range_value_negative_3_reg>>repair_bit))
+        else if(input_data>(range_value_negative_4_point_5_reg>>>repair_bit) && input_data<=(range_value_negative_3_reg>>>repair_bit))
             range_signal <= 2;
-        else if(input_data>(range_value_negative_3_reg>>repair_bit) && input_data<=(range_value_negative_2_point_5_reg>>repair_bit))
+        else if(input_data>(range_value_negative_3_reg>>>repair_bit) && input_data<=(range_value_negative_2_point_5_reg>>>repair_bit))
             range_signal <= 3;
-        else if(input_data>(range_value_negative_2_point_5_reg>>repair_bit) && input_data<=(range_value_negative_2_reg>>repair_bit))
+        else if(input_data>(range_value_negative_2_point_5_reg>>>repair_bit) && input_data<=(range_value_negative_2_reg>>>repair_bit))
             range_signal <= 4;
-        else if(input_data>(range_value_negative_2_reg>>repair_bit) && input_data<=(range_value_negative_1_point_5_reg>>repair_bit))
+        else if(input_data>(range_value_negative_2_reg>>>repair_bit) && input_data<=(range_value_negative_1_point_5_reg>>>repair_bit))
             range_signal <= 5;
-        else if(input_data>(range_value_negative_1_point_5_reg>>repair_bit) && input_data<=(range_value_negative_1_reg>>repair_bit))
+        else if(input_data>(range_value_negative_1_point_5_reg>>>repair_bit) && input_data<=(range_value_negative_1_reg>>>repair_bit))
             range_signal <= 6;
-        else if(input_data>(range_value_negative_1_reg>>repair_bit) && input_data<=(range_value_positive_1_reg>>repair_bit))
+        else if(input_data>(range_value_negative_1_reg>>>repair_bit) && input_data<=(range_value_positive_1_reg>>>repair_bit))
             range_signal <= 7;
-        else if(input_data>(range_value_positive_1_reg>>repair_bit) && input_data<=(range_value_positive_1_point_5_reg>>repair_bit))
+        else if(input_data>(range_value_positive_1_reg>>>repair_bit) && input_data<=(range_value_positive_1_point_5_reg>>>repair_bit))
             range_signal <= 8;
-        else if(input_data>(range_value_positive_1_point_5_reg>>repair_bit) && input_data<=(range_value_positive_2_reg>>repair_bit))
+        else if(input_data>(range_value_positive_1_point_5_reg>>>repair_bit) && input_data<=(range_value_positive_2_reg>>>repair_bit))
             range_signal <= 9;
-        else if(input_data>(range_value_positive_2_reg>>repair_bit) && input_data<=(range_value_positive_2_point_5_reg>>repair_bit))
+        else if(input_data>(range_value_positive_2_reg>>>repair_bit) && input_data<=(range_value_positive_2_point_5_reg>>>repair_bit))
             range_signal <= 10;    
-        else if(input_data>(range_value_positive_2_point_5_reg>>repair_bit) && input_data<=(range_value_positive_3_reg>>repair_bit))
+        else if(input_data>(range_value_positive_2_point_5_reg>>>repair_bit) && input_data<=(range_value_positive_3_reg>>>repair_bit))
             range_signal <= 11;    
-        else if(input_data>(range_value_positive_3_reg>>repair_bit) && input_data<=(range_value_positive_4_point_5_reg>>repair_bit))
+        else if(input_data>(range_value_positive_3_reg>>>repair_bit) && input_data<=(range_value_positive_4_point_5_reg>>>repair_bit))
             range_signal <= 12; 
-        else if(input_data>(range_value_positive_4_point_5_reg>>repair_bit) && input_data<=(range_value_positive_8_reg>>repair_bit))
+        else if(input_data>(range_value_positive_4_point_5_reg>>>repair_bit) && input_data<=(range_value_positive_8_reg>>>repair_bit))
             range_signal <= 13; 
-        else if(input_data>(range_value_positive_8_reg>>repair_bit))
+        else if(input_data>(range_value_positive_8_reg>>>repair_bit))
             range_signal <= 14;
         else
             range_signal <= 0;
@@ -413,151 +413,151 @@ module fpga_exp_lookuptable_func_layer#(
     always@(*)begin
         case (range_signal)
             0   :   begin
-                output_alpha_find = (data_positive_exp_1_point_125_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_1_point_125_reg>>repair_bit);
+                output_alpha_find = (data_positive_exp_1_point_125_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_1_point_125_reg>>>repair_bit);
             end
             1   :   begin
-                output_alpha_find = (data_positive_exp_1_point_117188_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_1_point_109375_reg>>repair_bit);
+                output_alpha_find = (data_positive_exp_1_point_117188_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_1_point_109375_reg>>>repair_bit);
             end
             2   :   begin
-                output_alpha_find = (data_positive_exp_1_point_101563_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_1_point_09375_reg>>repair_bit);
+                output_alpha_find = (data_positive_exp_1_point_101563_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_1_point_09375_reg>>>repair_bit);
             end
             3   :   begin
-                output_alpha_find = (data_positive_exp_1_point_085938_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_1_point_078125_reg>>repair_bit); 
+                output_alpha_find = (data_positive_exp_1_point_085938_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_1_point_078125_reg>>>repair_bit); 
             end
             4   :   begin
-                output_alpha_find = (data_positive_exp_1_point_070313_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_1_point_0625_reg>>repair_bit); 
+                output_alpha_find = (data_positive_exp_1_point_070313_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_1_point_0625_reg>>>repair_bit); 
             end
             5   :   begin
-                output_alpha_find = (data_positive_exp_1_point_054688_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_1_point_046875_reg>>repair_bit); 
+                output_alpha_find = (data_positive_exp_1_point_054688_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_1_point_046875_reg>>>repair_bit); 
             end
             6   :   begin
-                output_alpha_find = (data_positive_exp_1_point_039063_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_1_point_03125_reg>>repair_bit); 
+                output_alpha_find = (data_positive_exp_1_point_039063_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_1_point_03125_reg>>>repair_bit); 
             end
             7   :   begin
-                output_alpha_find = (data_positive_exp_1_point_023438_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_1_point_015625_reg>>repair_bit); 
+                output_alpha_find = (data_positive_exp_1_point_023438_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_1_point_015625_reg>>>repair_bit); 
             end
             8   :   begin
-                output_alpha_find = (data_positive_exp_1_point_007813_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_1_point_reg>>repair_bit); 
+                output_alpha_find = (data_positive_exp_1_point_007813_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_1_point_reg>>>repair_bit); 
             end
             9   :   begin
-                output_alpha_find = (data_positive_exp_0_point_125_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_0_point_125_reg>>repair_bit); 
+                output_alpha_find = (data_positive_exp_0_point_125_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_0_point_125_reg>>>repair_bit); 
             end
             10  :   begin
-                output_alpha_find = (data_positive_exp_0_point_117188_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_0_point_109375_reg>>repair_bit);
+                output_alpha_find = (data_positive_exp_0_point_117188_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_0_point_109375_reg>>>repair_bit);
             end
             11  :   begin
-                output_alpha_find = (data_positive_exp_0_point_101563_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_0_point_09375_reg>>repair_bit);
+                output_alpha_find = (data_positive_exp_0_point_101563_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_0_point_09375_reg>>>repair_bit);
             end
             12  :   begin
-                output_alpha_find = (data_positive_exp_0_point_085938_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_0_point_078125_reg>>repair_bit);
+                output_alpha_find = (data_positive_exp_0_point_085938_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_0_point_078125_reg>>>repair_bit);
             end
             13  :   begin
-                output_alpha_find = (data_positive_exp_0_point_070313_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_0_point_0625_reg>>repair_bit);
+                output_alpha_find = (data_positive_exp_0_point_070313_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_0_point_0625_reg>>>repair_bit);
             end
             14  :   begin
-                output_alpha_find = (data_positive_exp_0_point_054688_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_0_point_046875_reg>>repair_bit);
+                output_alpha_find = (data_positive_exp_0_point_054688_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_0_point_046875_reg>>>repair_bit);
             end
             15  :   begin
-                output_alpha_find = (data_positive_exp_0_point_039063_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_0_point_03125_reg>>repair_bit);
+                output_alpha_find = (data_positive_exp_0_point_039063_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_0_point_03125_reg>>>repair_bit);
             end
             16  :   begin
-                output_alpha_find = (data_positive_exp_0_point_023438_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_0_point_015625_reg>>repair_bit);
+                output_alpha_find = (data_positive_exp_0_point_023438_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_0_point_015625_reg>>>repair_bit);
             end
             17  :   begin
-                output_alpha_find = (data_positive_exp_0_point_007813_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_positive_0_point_reg>>repair_bit);
+                output_alpha_find = (data_positive_exp_0_point_007813_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_positive_0_point_reg>>>repair_bit);
             end
             18  :   begin
-                output_alpha_find = (data_negative_exp_0_point_875_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_0_point_875_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_0_point_875_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_0_point_875_reg>>>repair_bit);
             end
             19  :   begin
-                output_alpha_find = (data_negative_exp_0_point_88281_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_0_point_89063_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_0_point_88281_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_0_point_89063_reg>>>repair_bit);
             end
             20  :   begin
-                output_alpha_find = (data_negative_exp_0_point_89844_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_0_point_90625_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_0_point_89844_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_0_point_90625_reg>>>repair_bit);
             end
             21  :   begin
-                output_alpha_find = (data_negative_exp_0_point_91406_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_0_point_92188_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_0_point_91406_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_0_point_92188_reg>>>repair_bit);
             end
             22  :   begin
-                output_alpha_find = (data_negative_exp_0_point_92969_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_0_point_9375_reg>>repair_bit);  
+                output_alpha_find = (data_negative_exp_0_point_92969_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_0_point_9375_reg>>>repair_bit);  
             end
             23  :   begin
-                output_alpha_find = (data_negative_exp_0_point_94531_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_0_point_95313_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_0_point_94531_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_0_point_95313_reg>>>repair_bit);
             end
             24  :   begin
-                output_alpha_find = (data_negative_exp_0_point_96094_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_0_point_96875_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_0_point_96094_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_0_point_96875_reg>>>repair_bit);
             end
             25  :   begin
-                output_alpha_find = (data_negative_exp_0_point_97656_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_0_point_98438_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_0_point_97656_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_0_point_98438_reg>>>repair_bit);
             end
             26  :   begin
-                output_alpha_find = (data_negative_exp_0_point_99219_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_1_point_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_0_point_99219_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_1_point_reg>>>repair_bit);
             end
             27  :   begin
-                output_alpha_find = (data_negative_exp_1_point_875_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_1_point_875_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_1_point_875_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_1_point_875_reg>>>repair_bit);
             end
             28  :   begin
-                output_alpha_find = (data_negative_exp_1_point_88281_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_1_point_89063_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_1_point_88281_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_1_point_89063_reg>>>repair_bit);
             end
             29  :   begin
-                output_alpha_find = (data_negative_exp_1_point_89844_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_1_point_90625_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_1_point_89844_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_1_point_90625_reg>>>repair_bit);
             end
             30  :   begin
-                output_alpha_find = (data_negative_exp_1_point_91406_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_1_point_92188_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_1_point_91406_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_1_point_92188_reg>>>repair_bit);
             end
             31  :   begin
-                output_alpha_find = (data_negative_exp_1_point_92969_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_1_point_9375_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_1_point_92969_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_1_point_9375_reg>>>repair_bit);
             end
             32  :   begin
-                output_alpha_find = (data_negative_exp_1_point_94531_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_1_point_95313_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_1_point_94531_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_1_point_95313_reg>>>repair_bit);
             end
             33  :   begin
-                output_alpha_find = (data_negative_exp_1_point_96094_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_1_point_96875_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_1_point_96094_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_1_point_96875_reg>>>repair_bit);
             end
             34  :   begin
-                output_alpha_find = (data_negative_exp_1_point_97656_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_1_point_98438_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_1_point_97656_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_1_point_98438_reg>>>repair_bit);
             end
             35  :   begin
-                output_alpha_find = (data_negative_exp_1_point_99219_reg>>repair_bit);
-                output_bias_find  = input_data - (range_value_negative_2_point_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_1_point_99219_reg>>>repair_bit);
+                output_bias_find  = input_data - (range_value_negative_2_point_reg>>>repair_bit);
             end
             36  :   begin
-                output_alpha_find = (data_negative_exp_2_point_reg>>repair_bit);
+                output_alpha_find = (data_negative_exp_2_point_reg>>>repair_bit);
                 output_bias_find  = 16'h0000;
             end
             default: begin
@@ -568,79 +568,79 @@ module fpga_exp_lookuptable_func_layer#(
     end
 
     always@(posedge M_AXI_ACLK)begin
-        if(input_data > (range_value_positive_1_point_125_reg>>repair_bit))
+        if(input_data > (range_value_positive_1_point_125_reg>>>repair_bit))
             range_signal <= 0;
-        else if(input_data > (range_value_positive_1_point_109375_reg>>repair_bit))
+        else if(input_data > (range_value_positive_1_point_109375_reg>>>repair_bit))
             range_signal <= 1;
-        else if(input_data > (range_value_positive_1_point_09375_reg>>repair_bit))
+        else if(input_data > (range_value_positive_1_point_09375_reg>>>repair_bit))
             range_signal <= 2;
-        else if(input_data > (range_value_positive_1_point_078125_reg>>repair_bit))
+        else if(input_data > (range_value_positive_1_point_078125_reg>>>repair_bit))
             range_signal <= 3;
-        else if(input_data > (range_value_positive_1_point_0625_reg>>repair_bit))
+        else if(input_data > (range_value_positive_1_point_0625_reg>>>repair_bit))
             range_signal <= 4;
-        else if(input_data > (range_value_positive_1_point_046875_reg>>repair_bit))
+        else if(input_data > (range_value_positive_1_point_046875_reg>>>repair_bit))
             range_signal <= 5;
-        else if(input_data > (range_value_positive_1_point_03125_reg>>repair_bit))
+        else if(input_data > (range_value_positive_1_point_03125_reg>>>repair_bit))
             range_signal <= 6;
-        else if(input_data > (range_value_positive_1_point_015625_reg>>repair_bit))
+        else if(input_data > (range_value_positive_1_point_015625_reg>>>repair_bit))
             range_signal <= 7;
-        else if(input_data > (range_value_positive_1_point_reg>>repair_bit))
+        else if(input_data > (range_value_positive_1_point_reg>>>repair_bit))
             range_signal <= 8;
-        else if(input_data > (range_value_positive_0_point_125_reg>>repair_bit))//next range(1 -> 0.125)
+        else if(input_data > (range_value_positive_0_point_125_reg>>>repair_bit))//next range(1 -> 0.125)
             range_signal <= 9;
-        else if(input_data > (range_value_positive_0_point_109375_reg>>repair_bit))
+        else if(input_data > (range_value_positive_0_point_109375_reg>>>repair_bit))
             range_signal <= 10;
-        else if(input_data > (range_value_positive_0_point_09375_reg>>repair_bit))
+        else if(input_data > (range_value_positive_0_point_09375_reg>>>repair_bit))
             range_signal <= 11;
-        else if(input_data > (range_value_positive_0_point_078125_reg>>repair_bit))
+        else if(input_data > (range_value_positive_0_point_078125_reg>>>repair_bit))
             range_signal <= 12;
-        else if(input_data > (range_value_positive_0_point_0625_reg>>repair_bit))
+        else if(input_data > (range_value_positive_0_point_0625_reg>>>repair_bit))
             range_signal <= 13;
-        else if(input_data > (range_value_positive_0_point_046875_reg>>repair_bit))
+        else if(input_data > (range_value_positive_0_point_046875_reg>>>repair_bit))
             range_signal <= 14;
-        else if(input_data > (range_value_positive_0_point_03125_reg>>repair_bit))
+        else if(input_data > (range_value_positive_0_point_03125_reg>>>repair_bit))
             range_signal <= 15;
-        else if(input_data > (range_value_positive_0_point_015625_reg>>repair_bit))
+        else if(input_data > (range_value_positive_0_point_015625_reg>>>repair_bit))
             range_signal <= 16;
-        else if(input_data > (range_value_positive_0_point_reg>>repair_bit))
+        else if(input_data > (range_value_positive_0_point_reg>>>repair_bit))
             range_signal <= 17;
-        else if(input_data > (range_value_negative_0_point_875_reg>>repair_bit))//next range(0 -> -0.875)
+        else if(input_data > (range_value_negative_0_point_875_reg>>>repair_bit))//next range(0 -> -0.875)
             range_signal <= 18;
-        else if(input_data > (range_value_negative_0_point_89063_reg>>repair_bit))
+        else if(input_data > (range_value_negative_0_point_89063_reg>>>repair_bit))
             range_signal <= 19;
-        else if(input_data > (range_value_negative_0_point_90625_reg>>repair_bit))
+        else if(input_data > (range_value_negative_0_point_90625_reg>>>repair_bit))
             range_signal <= 20;
-        else if(input_data > (range_value_negative_0_point_92188_reg>>repair_bit))
+        else if(input_data > (range_value_negative_0_point_92188_reg>>>repair_bit))
             range_signal <= 21;
-        else if(input_data > (range_value_negative_0_point_9375_reg>>repair_bit))
+        else if(input_data > (range_value_negative_0_point_9375_reg>>>repair_bit))
             range_signal <= 22;
-        else if(input_data > (range_value_negative_0_point_95313_reg>>repair_bit))
+        else if(input_data > (range_value_negative_0_point_95313_reg>>>repair_bit))
             range_signal <= 23;
-        else if(input_data > (range_value_negative_0_point_96875_reg>>repair_bit))
+        else if(input_data > (range_value_negative_0_point_96875_reg>>>repair_bit))
             range_signal <= 24;
-        else if(input_data > (range_value_negative_0_point_98438_reg>>repair_bit))
+        else if(input_data > (range_value_negative_0_point_98438_reg>>>repair_bit))
             range_signal <= 25;
-        else if(input_data > (range_value_negative_1_point_reg>>repair_bit))
+        else if(input_data > (range_value_negative_1_point_reg>>>repair_bit))
             range_signal <= 26;
-        else if(input_data > (range_value_negative_1_point_875_reg>>repair_bit))//next range(-1 -> -1.875)
+        else if(input_data > (range_value_negative_1_point_875_reg>>>repair_bit))//next range(-1 -> -1.875)
             range_signal <= 27;
-        else if(input_data > (range_value_negative_1_point_89063_reg>>repair_bit))
+        else if(input_data > (range_value_negative_1_point_89063_reg>>>repair_bit))
             range_signal <= 28;
-        else if(input_data > (range_value_negative_1_point_90625_reg>>repair_bit))
+        else if(input_data > (range_value_negative_1_point_90625_reg>>>repair_bit))
             range_signal <= 29;
-        else if(input_data > (range_value_negative_1_point_92188_reg>>repair_bit))
+        else if(input_data > (range_value_negative_1_point_92188_reg>>>repair_bit))
             range_signal <= 30;
-        else if(input_data > (range_value_negative_1_point_9375_reg>>repair_bit))
+        else if(input_data > (range_value_negative_1_point_9375_reg>>>repair_bit))
             range_signal <= 31;
-        else if(input_data > (range_value_negative_1_point_95313_reg>>repair_bit))
+        else if(input_data > (range_value_negative_1_point_95313_reg>>>repair_bit))
             range_signal <= 32;
-        else if(input_data > (range_value_negative_1_point_96875_reg>>repair_bit))
+        else if(input_data > (range_value_negative_1_point_96875_reg>>>repair_bit))
             range_signal <= 33;    
-        else if(input_data > (range_value_negative_1_point_98438_reg>>repair_bit))
+        else if(input_data > (range_value_negative_1_point_98438_reg>>>repair_bit))
             range_signal <= 34;
-        else if(input_data > (range_value_negative_2_point_reg>>repair_bit))
+        else if(input_data > (range_value_negative_2_point_reg>>>repair_bit))
             range_signal <= 35;
-        else if(input_data <= (range_value_negative_2_point_reg>>repair_bit))
+        else if(input_data <= (range_value_negative_2_point_reg>>>repair_bit))
             range_signal <= 36;
         else begin
             range_signal <= 37;
@@ -690,22 +690,22 @@ module exp_bias_choose_func_layer#(
     wire signed [data_bit-1:0] data_positive_exp_0_point_125_reg     = data_positive_exp_0_point_125    ;
     wire signed [data_bit-1:0] data_positive_exp_0_point_reg         = data_positive_exp_0_point        ;
     always@(*)begin
-        if(input_data>(range_value_positive_0_point_8125_reg>>repair_bit))begin
-            output_data = (data_positive_exp_0_point_875_reg>>repair_bit);
-        end else if(input_data>(range_value_positive_0_point_6875_reg>>repair_bit))begin
-            output_data = (data_positive_exp_0_point_75_reg>>repair_bit);
-        end else if(input_data>(range_value_positive_0_point_5625_reg>>repair_bit))begin
-            output_data = (data_positive_exp_0_point_625_reg>>repair_bit);
-        end else if(input_data>(range_value_positive_0_point_4375_reg>>repair_bit))begin
-            output_data = (data_positive_exp_0_point_5_reg>>repair_bit);
-        end else if(input_data>(range_value_positive_0_point_3125_reg>>repair_bit))begin
-            output_data = (data_positive_exp_0_point_375_reg>>repair_bit);
-        end else if(input_data>(range_value_positive_0_point_1875_reg>>repair_bit))begin
-            output_data = (data_positive_exp_0_point_250_reg>>repair_bit);
-        end else if(input_data>(range_value_positive_0_point_0625_reg>>repair_bit))begin
-            output_data = (data_positive_exp_0_point_125_reg>>repair_bit);
-        end else if(input_data<=(range_value_positive_0_point_0625_reg>>repair_bit))begin
-            output_data = (data_positive_exp_0_point_reg>>repair_bit);
+        if(input_data>(range_value_positive_0_point_8125_reg>>>repair_bit))begin
+            output_data = (data_positive_exp_0_point_875_reg>>>repair_bit);
+        end else if(input_data>(range_value_positive_0_point_6875_reg>>>repair_bit))begin
+            output_data = (data_positive_exp_0_point_75_reg>>>repair_bit);
+        end else if(input_data>(range_value_positive_0_point_5625_reg>>>repair_bit))begin
+            output_data = (data_positive_exp_0_point_625_reg>>>repair_bit);
+        end else if(input_data>(range_value_positive_0_point_4375_reg>>>repair_bit))begin
+            output_data = (data_positive_exp_0_point_5_reg>>>repair_bit);
+        end else if(input_data>(range_value_positive_0_point_3125_reg>>>repair_bit))begin
+            output_data = (data_positive_exp_0_point_375_reg>>>repair_bit);
+        end else if(input_data>(range_value_positive_0_point_1875_reg>>>repair_bit))begin
+            output_data = (data_positive_exp_0_point_250_reg>>>repair_bit);
+        end else if(input_data>(range_value_positive_0_point_0625_reg>>>repair_bit))begin
+            output_data = (data_positive_exp_0_point_125_reg>>>repair_bit);
+        end else if(input_data<=(range_value_positive_0_point_0625_reg>>>repair_bit))begin
+            output_data = (data_positive_exp_0_point_reg>>>repair_bit);
         end else begin
             output_data = 16'hxxxx;
         end
@@ -729,7 +729,7 @@ module process_mul_element#(
             if(rst)begin
                 MUL_answer <= 0;
             end else begin
-                MUL_answer <= (input_alpha * input_data)>>data_shift;
+                MUL_answer <= (input_alpha * input_data)>>>data_shift;
             end
         end
 endmodule
@@ -745,6 +745,6 @@ module process_add_element#(
         output  reg   signed[data_bit-1:0] output_data
     );
         always@(posedge M_AXI_ACLK)begin
-            output_data <= (input_data + input_bias)>>1;
+            output_data <= (input_data + input_bias)>>>1;
         end
 endmodule
