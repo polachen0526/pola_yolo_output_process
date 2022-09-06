@@ -788,18 +788,35 @@ module YOLO_output_spilt_process#(
         //---------------------------------PE module--------------------------------
         wire [Data_bit-1 : 0]sigmoid_output_alpha , sigmoid_output_bias;
         wire [Data_bit-1 : 0]exp_output_alpha , exp_output_bias;
-
+        reg  [Data_bit-1 : 0]input_data_control_sigmoid,input_data_control_exp;
+        
+        always@(*)begin
+            if(C_process_six_state == 1)begin
+                input_data_control_sigmoid  = output_answer_line[0];
+                input_data_control_exp      = output_answer_line[2];
+            end else if(C_process_six_state == 2)begin
+                input_data_control_sigmoid  = output_answer_line[1];
+                input_data_control_exp      = output_answer_line[3];
+            end else if(C_process_six_state == 3)begin
+                input_data_control_sigmoid  = output_answer_line[5];
+                input_data_control_exp      = 0;
+            end else begin
+                input_data_control_sigmoid  = 0;
+                input_data_control_exp      = 0;
+            end
+        end
+        
         fpga_linear_sigmoid_func_layer #(.bias_shift_bit(10)) sigmoid_layer_0(
             .M_AXI_ACLK(M_AXI_ACLK),
             .rst(rst),
-            .input_data(output_answer_line[1]),
+            .input_data(input_data_control_sigmoid),
             .output_alpha(sigmoid_output_alpha),
             .output_bias(sigmoid_output_bias)
         );
         fpga_exp_lookuptable_func_layer #(.bias_shift_bit(10)) exp_layer_0(
             .M_AXI_ACLK(M_AXI_ACLK),
             .rst(rst),
-            .input_data(output_answer_line[3]),
+            .input_data(input_data_control_exp),
             .output_alpha(exp_output_alpha),
             .output_bias(exp_output_bias)
         );
