@@ -19,7 +19,6 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-
 module YOLO_output_spilt_process#(
         parameter C_S_AXI_DATA_WIDTH        = 32,
         parameter C_M_AXI_ID_WIDTH	        = 1,
@@ -698,48 +697,8 @@ module YOLO_output_spilt_process#(
         //----------------------Process_FSM------------------------------------
         //1. in process fsm put data in sigmoid func and exp func
         reg [2:0]C_process_state , N_process_state;
-        reg [2:0]C_process_six_state , N_process_six_state;
-        reg [2:0]C_process_mul_add_state , N_process_mul_add_state;
-        reg [3:0]class_count;
-        reg [1:0]tx_ty_tw_th_count;
         wire PROCESS_calc_state_finish;
-        wire tx_sigmoid_tw_exp_func_finish;
-        wire ty_sigmoid_th_exp_func_finish;
-        wire class_sigmoid_func_finish;
-        reg  [1:0] sigmoid_exp_func_count;
-        assign tx_sigmoid_tw_exp_func_finish = (C_process_mul_add_state==0 && C_process_six_state==1 && sigmoid_exp_func_count==2) ? 1 : 0;
-        assign ty_sigmoid_th_exp_func_finish = (C_process_mul_add_state==0 && C_process_six_state==2 && sigmoid_exp_func_count==2) ? 1 : 0;
-        assign class_sigmoid_func_finish     = (C_process_mul_add_state==0 && C_process_six_state==3 && sigmoid_exp_func_count==2) ? 1 : 0;
 
-
-        always@(posedge M_AXI_ACLK)begin
-            if(rst || tx_sigmoid_tw_exp_func_finish || ty_sigmoid_th_exp_func_finish)
-                sigmoid_exp_func_count <= 0;
-            else if(C_process_six_state !=0 && sigmoid_exp_func_count<2)
-                sigmoid_exp_func_count <= sigmoid_exp_func_count + 1;
-            else 
-                sigmoid_exp_func_count <= sigmoid_exp_func_count;
-        end
-
-        always@(posedge M_AXI_ACLK)begin
-            if(rst || C_process_six_state==0)
-                class_count <= 0;
-            else if(class_sigmoid_func_finish)
-                class_count <= class_count + 1;
-            else
-                class_count <= class_count;
-        end
-
-        always@(posedge M_AXI_ACLK)begin
-            if(rst)
-                tx_ty_tw_th_count <= 0;
-            else if(tx_ty_tw_th_count==2)
-                tx_ty_tw_th_count <= 0;
-            else if(tx_sigmoid_tw_exp_func_finish || ty_sigmoid_th_exp_func_finish)
-                tx_ty_tw_th_count <= tx_ty_tw_th_count + 1;
-            else
-                tx_ty_tw_th_count <= tx_ty_tw_th_count;
-        end
         //-----------------------------------------how many box need process--------------------------------------
         always@(posedge M_AXI_ACLK)begin
             if(rst)
@@ -771,261 +730,6 @@ module YOLO_output_spilt_process#(
                 end
             endcase
         end
-        //-----------------------------------------one clock  1sigmoid and 1 exp--------------------------------------
-        always@(posedge M_AXI_ACLK)begin
-            if(rst)
-                C_process_six_state <= 0;
-            else
-                C_process_six_state <= N_process_six_state;
-        end
-
-        always@(*)begin
-            case (C_process_six_state)
-                0   :   begin
-                    if(C_process_state==PROCESS_calc_state)                           N_process_six_state = 1;
-                    else                                                              N_process_six_state = 0;
-                end
-                1   :   begin
-                    if(tx_sigmoid_tw_exp_func_finish)                                 N_process_six_state = 2;
-                    else                                                              N_process_six_state = 1;
-                end
-                2   :   begin
-                    if(ty_sigmoid_th_exp_func_finish)                                 N_process_six_state = 3;
-                    else                                                              N_process_six_state = 2;
-                end
-                3   :   begin
-                    if(class_sigmoid_func_finish && class_count==num_classes-1)       N_process_six_state = 0;
-                    else                                                              N_process_six_state = 3;
-                end
-                default: begin
-                    N_process_six_state = 0;
-                end
-            endcase
-        end
-        //---------------------------------1mul and 1 add schedule---------------------------------------------
-        always@(posedge M_AXI_ACLK)begin
-            if(rst)
-                C_process_mul_add_state <= 0;
-            else
-                C_process_mul_add_state <= N_process_mul_add_state;
-        end
-
-        always@(*)begin
-            case (C_process_mul_add_state)
-                0   :   begin
-                    if(tx_sigmoid_tw_exp_func_finish || ty_sigmoid_th_exp_func_finish)      N_process_mul_add_state = 1;
-                    else                                                                    N_process_mul_add_state = 0;
-                end
-                1   :   begin
-                    if(s_axi_start)                     N_process_mul_add_state = 2;
-                    else                                N_process_mul_add_state = 1;
-                end
-                2   :   begin
-                    if(s_axi_start)                     N_process_mul_add_state = 3;
-                    else                                N_process_mul_add_state = 2;
-                end
-                3   :   begin                           
-                    if(tx_ty_tw_th_count==2)            N_process_mul_add_state = 0;//if already finish tw th tx ty then to do normal sigmoid(class)
-                    else if(s_axi_start)                N_process_mul_add_state = 4;
-                    else                                N_process_mul_add_state = 3;
-                end
-                4   :   begin
-                    if(s_axi_start)                     N_process_mul_add_state = 5;// + something
-                    else                                N_process_mul_add_state = 4;
-                end
-                5   :   begin
-                    if(s_axi_start)                     N_process_mul_add_state = 6;// * something
-                    else                                N_process_mul_add_state = 5;
-                end
-                6   :   begin
-                    if(s_axi_start)                     N_process_mul_add_state = 0;// put sigmoid and exp data to sram
-                    else                                N_process_mul_add_state = 6;
-                end
-                default: begin
-                    N_process_mul_add_state = 0;
-                end
-            endcase
-        end
-
-
-        //---------------------------------PE module--------------------------------
-        wire       [3:0]repair_bit;
-        wire       signed [Data_bit-1:0]n_value; //present the y location
-        wire       signed [Data_bit-1:0]m_value; //present the x location
-        reg        [Data_bit-1:0]  func_shift_bit;
-        reg        [1:0]           func_select_bit;
-        wire signed[Data_bit-1 : 0]sigmoid_output_alpha , sigmoid_output_bias;
-        wire signed[Data_bit-1 : 0]exp_output_alpha , exp_output_bias ; 
-        wire signed[Data_bit-1 : 0]output_data_control_mul , output_data_control_add;
-        reg  signed[Data_bit-1 : 0]sigmoid_keep_alpha , sigmoid_keep_bias;
-        reg  signed[Data_bit-1 : 0]exp_keep_alpha , exp_keep_bias;
-        reg  signed[Data_bit-1 : 0]input_data_control_sigmoid,input_data_control_exp;
-        reg  signed[Data_bit-1 : 0]input_data_control_mul_alpha , input_data_control_mul_bias;
-        reg  signed[Data_bit-1 : 0]input_data_control_add_alpha , input_data_control_add_bias;
-        reg  signed[Data_bit-1 : 0]after_mul_answer , after_add_answer;
-        assign repair_bit = output_answer_line[6][11-:4];//index_register
-        assign n_value    = output_answer_line[6][7-:4]<<<layer_shift_bit;
-        assign m_value    = output_answer_line[6][3-:4]<<<layer_shift_bit;
-
-        always@(*)begin
-            if(C_process_six_state == 1)begin
-                input_data_control_sigmoid  = output_answer_line[0];
-                input_data_control_exp      = output_answer_line[2];
-            end else if(C_process_six_state == 2)begin
-                input_data_control_sigmoid  = output_answer_line[1];
-                input_data_control_exp      = output_answer_line[3];
-            end else if(C_process_six_state == 3)begin
-                input_data_control_sigmoid  = output_answer_line[4];
-                input_data_control_exp      = 0;
-            end else begin
-                input_data_control_sigmoid  = 0;
-                input_data_control_exp      = 0;
-            end
-        end
-        
-        always@(posedge M_AXI_ACLK)begin
-            if(rst)begin
-                sigmoid_keep_alpha  <= 0;
-                sigmoid_keep_bias   <= 0;
-                exp_keep_alpha      <= 0;
-                exp_keep_bias       <= 0;
-            end else if(C_process_mul_add_state==1)begin
-                sigmoid_keep_alpha  <= sigmoid_output_alpha;
-                sigmoid_keep_bias   <= sigmoid_output_bias;
-                exp_keep_alpha      <= exp_output_alpha;
-                exp_keep_bias       <= exp_output_bias;
-            end else begin
-                sigmoid_keep_alpha  <= sigmoid_keep_alpha;
-                sigmoid_keep_bias   <= sigmoid_keep_bias;
-                exp_keep_alpha      <= exp_keep_alpha;
-                exp_keep_bias       <= exp_keep_bias;
-            end
-        end
-
-        always@(posedge M_AXI_ACLK)begin
-            if(rst || C_process_mul_add_state==1)begin
-                after_mul_answer <= 0;
-                after_add_answer <= 0;
-            end else begin
-                after_mul_answer <= output_data_control_mul;
-                after_add_answer <= output_data_control_add;
-            end
-        end
-
-        always@(*)begin
-            //-in there C_process_mul_add_state==2 || ==3 ,is mean tx_sigmoid_tw_exp_func_finish and take sigmoid and exp value already
-            //-then when C_process_mul_add_state==2 we need put the value to mul_alpha mul_bias add_alpha add_bias
-            if(C_process_mul_add_state==2)begin
-                func_shift_bit                  = data_shift;
-                func_select_bit                 = 1;
-            end else if(C_process_mul_add_state==3)begin
-                func_shift_bit                  = layer_shift_bit; //10
-                func_select_bit                 = 2;
-            end else if(C_process_mul_add_state==4)begin
-                func_shift_bit                  = 3; //10
-                func_select_bit                 = 2;
-            end else begin
-                func_shift_bit                  = 0;
-                func_select_bit                 = 0;
-            end
-        end
-
-        always@(*)begin
-            if(C_process_mul_add_state==2)begin
-                input_data_control_mul_alpha    = sigmoid_keep_alpha;
-            end else if(C_process_mul_add_state==3)begin
-                input_data_control_mul_alpha    = exp_keep_alpha;
-            end else if(C_process_mul_add_state==4)begin
-                input_data_control_mul_alpha    = anchor_layer_0_0;
-            end else begin
-                input_data_control_mul_alpha    = 0;
-            end
-        end
-
-        always@(*)begin
-            if(C_process_six_state==2)begin
-                if(C_process_mul_add_state==2)
-                    input_data_control_mul_bias     =    output_answer_line[0];//sigmoid[0]
-                else if(C_process_mul_add_state==3)
-                    input_data_control_mul_bias     =    exp_keep_bias;//exp mul bias
-                else if(C_process_mul_add_state==4)
-                    input_data_control_mul_bias     =    output_data_control_mul;//exp mul anchor box
-                else 
-                    input_data_control_mul_bias     =   0;
-            end else if(C_process_six_state==3)begin
-                if(C_process_mul_add_state==2)
-                    input_data_control_mul_bias     =    output_answer_line[1];//sigmoid[0]
-                else if(C_process_mul_add_state==3)
-                    input_data_control_mul_bias     =    exp_keep_bias;//exp mul bias
-                else if(C_process_mul_add_state==4)
-                    input_data_control_mul_bias     =    output_data_control_mul;//exp mul anchor box
-                else 
-                    input_data_control_mul_bias     =   0;
-            end else begin
-                input_data_control_mul_bias         =   0;
-            end
-        end
-
-        always@(*)begin
-            if(C_process_mul_add_state==2)begin
-                input_data_control_add_alpha    = 0;
-            end else if(C_process_mul_add_state==3)begin
-                input_data_control_add_alpha    = output_data_control_mul;
-            end else if(C_process_mul_add_state==4)begin
-                input_data_control_add_alpha    = output_data_control_add;
-            end else begin
-                input_data_control_add_alpha    = 0;
-            end
-        end
-
-        always@(*)begin
-            if(C_process_mul_add_state==2)begin
-                input_data_control_add_bias     = 0;
-            end else if(C_process_mul_add_state==3)begin
-                input_data_control_add_bias     = sigmoid_keep_bias;
-            end else if(C_process_mul_add_state==4)begin
-                input_data_control_add_bias     = n_value;
-            end else begin
-                input_data_control_add_bias     = 0;
-            end
-        end
-
-        fpga_linear_sigmoid_func_layer #(.bias_shift_bit(layer_shift_bit)) sigmoid_layer(
-            .M_AXI_ACLK(M_AXI_ACLK),
-            .rst(rst),
-            .repair_bit(repair_bit),
-            .input_data(input_data_control_sigmoid),
-            .output_alpha(sigmoid_output_alpha),
-            .output_bias(sigmoid_output_bias)
-        );
-        fpga_exp_lookuptable_func_layer #(.bias_shift_bit(layer_shift_bit)) exp_layer(
-            .M_AXI_ACLK(M_AXI_ACLK),
-            .rst(rst),
-            .repair_bit(repair_bit),
-            .input_data(input_data_control_exp),
-            .output_alpha(exp_output_alpha),
-            .output_bias(exp_output_bias)
-        );
-        process_mul_element mul_element(
-            .M_AXI_ACLK(M_AXI_ACLK),
-            .rst(rst),
-            .func_shift_bit(func_shift_bit),
-            .func_select_bit(func_select_bit),
-            .repair_bit(repair_bit),
-            .input_data(input_data_control_mul_bias),
-            .input_alpha(input_data_control_mul_alpha),
-            .output_data(output_data_control_mul)
-        );
-        process_add_element add_element(
-            .M_AXI_ACLK(M_AXI_ACLK),
-            .rst(rst),
-            .func_shift_bit(func_shift_bit),
-            .func_select_bit(func_select_bit),
-            .repair_bit(repair_bit),
-            .input_data(input_data_control_add_alpha),
-            .input_bias(input_data_control_add_bias),
-            .output_data(output_data_control_add)
-        );
 
         //----------------------latch_count_define-----------------------------
         reg en_axi_rcount       , en_axi_wcount;
@@ -1186,4 +890,28 @@ module YOLO_output_spilt_process#(
             end
         end
 
+
+        //-----------------------------------PE module---------------------------------------
+        wire [Data_bit-1 : 0]data_parameter = (C_AB_set_FSM==INST_layer_0 ? {4'b0000 , {1'b0,layer_0_x_count} , {1'b0,layer_0_y_count}} : (C_AB_set_FSM==INST_layer_1 ? {4'b0001 , layer_1_x_count , layer_1_y_count} : 0));
+        wire [Data_bit-1 : 0]data_in_bx0    = Sram_data_input[0];
+        wire [Data_bit-1 : 0]data_in_by0    = Sram_data_input[1];
+        wire [Data_bit-1 : 0]data_in_bw0    = Sram_data_input[2];
+        wire [Data_bit-1 : 0]data_in_bh0    = Sram_data_input[3];
+        wire [Data_bit-1 : 0]data_in_bx1    = 0;
+        wire [Data_bit-1 : 0]data_in_by1    = 0;
+        wire [Data_bit-1 : 0]data_in_bw1    = 0;
+        wire [Data_bit-1 : 0]data_in_bh1    = 0;
+        YOLO_PE_Func_Control YOLO_PE_Func_Control_TOP(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .data_parameter(data_parameter),
+            .data_in_bx0(data_in_bx0),
+            .data_in_by0(data_in_by0),
+            .data_in_bw0(data_in_bw0),
+            .data_in_bh0(data_in_bh0),
+            .data_in_bx1(data_in_bx1),
+            .data_in_by1(data_in_by1),
+            .data_in_bw1(data_in_bw1),
+            .data_in_bh1(data_in_bh1)
+        );
 endmodule
