@@ -3,20 +3,6 @@ import tensorflow as tf
 def sigmoid(value):
     abs_value = tf.math.abs(value)
     tmp = tf.zeros_like(abs_value)
-    '''
-    for i in range(len(abs_value)):
-        if(abs_value[i]>=5.0):
-            abs_value[i] = 1
-        elif(abs_value[i]<5.0 and abs_value[i]>=2.375):
-            abs_value[i] = abs_value[i]*0.03125 + 0.84375
-        elif(abs_value[i]<2.375 and abs_value[i]>=1.0):
-            abs_value[i] = abs_value[i]*0.125 + 0.625
-        elif(abs_value[i]<1.0 and abs_value[i]>=0):
-            abs_value[i] = abs_value[i]*0.25 + 0.5
-        else:
-            ValueError("wrong input!!!!!!!!!")
-    return abs_value
-    '''
     cond_more_than_5                                            = tf.greater_equal(x=abs_value, y=5.0)
     cond_small_than_5_and_more_than_2point375                   = tf.equal(x=tf.less(abs_value,5.0), y=tf.greater_equal(x=abs_value, y=2.375))
     cond_small_than_2point375_and_more_than_1                   = tf.equal(x=tf.less(abs_value,2.375), y=tf.greater_equal(x=abs_value, y=1.0))
@@ -26,7 +12,8 @@ def sigmoid(value):
     number_list_cond_small_than_2point375_and_more_than_1       = tf.where(cond_small_than_2point375_and_more_than_1    , abs_value * 0.125 + 0.625 , tmp)
     number_list_cond_small_than_1_and_more_than_0               = tf.where(cond_small_than_1_and_more_than_0            , abs_value * 0.25 + 0.5 , tmp)
     result = number_list_cond_more_than_5 +number_list_cond_small_than_5_and_more_than_2point375 + number_list_cond_small_than_2point375_and_more_than_1 + number_list_cond_small_than_1_and_more_than_0
-    return result
+    sign_result = tf.where(tf.less(x=value,y=0) , 1-result , result)
+    return sign_result
 
 
 
@@ -71,9 +58,9 @@ def negative_cond(value , min_value , ones):
 
 def negative_body(value , min_value ,ones):
     ones_5_542  =   tf.where(tf.greater_equal(x=value, y=5.542)             ,   ones/256     , tf.zeros_like(ones))
-    ones_2_7726 =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=2.7726) , y=tf.less(x=value , y=5.542 ) ),   ones/16      , tf.zeros_like(ones))
-    ones_1_3863 =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=1.3863) , y=tf.less(x=value , y=2.7726) ),   ones/4       , tf.zeros_like(ones))
-    ones_0_6931 =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=0.6931) , y=tf.less(x=value , y=1.3863) ),   ones/2       , tf.zeros_like(ones))
+    ones_2_7726 =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=2.7726) , y=tf.less(x=value , y=5.542 ) ),   ones/16        , tf.zeros_like(ones))
+    ones_1_3863 =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=1.3863) , y=tf.less(x=value , y=2.7726) ),   ones/4         , tf.zeros_like(ones))
+    ones_0_6931 =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=0.6931) , y=tf.less(x=value , y=1.3863) ),   ones/2         , tf.zeros_like(ones))
     ones_0_2877 =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=0.2877) , y=tf.less(x=value , y=0.6931) ),   ones*(3/4    ) , tf.zeros_like(ones))
     ones_0_1335 =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=0.1335) , y=tf.less(x=value , y=0.2877) ),   ones*(7/8    ) , tf.zeros_like(ones))
     ones_0_0645 =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=0.0645) , y=tf.less(x=value , y=0.1335) ),   ones*(15/16  ) , tf.zeros_like(ones))
@@ -81,7 +68,7 @@ def negative_body(value , min_value ,ones):
     ones_0_0157 =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=0.0157) , y=tf.less(x=value , y=0.0317) ),   ones*(63/64  ) , tf.zeros_like(ones))
     ones_0_0078 =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=0.0078) , y=tf.less(x=value , y=0.0157) ),   ones*(127/128) , tf.zeros_like(ones))
     ones_0_0039 =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=0.0039) , y=tf.less(x=value , y=0.0078) ),   ones*(255/256) , tf.zeros_like(ones))
-    ones_0      =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=0)      , y=tf.less(x=value , y=0.0039) ),   ones         , tf.zeros_like(ones))
+    ones_0      =   tf.where(tf.equal(x=tf.greater_equal(x=value, y=0)      , y=tf.less(x=value , y=0.0039) ),   ones           , tf.zeros_like(ones))
     ones_another=   tf.where(tf.less(x=value , y=0), 0 ,tf.zeros_like(ones))
     ones_result = ones_5_542 + ones_2_7726 + ones_1_3863 + ones_0_6931 + ones_0_2877 + ones_0_1335 + ones_0_0645 + ones_0_0317 + ones_0_0157 + ones_0_0078 + ones_0_0039 + ones_0 + ones_another
 
@@ -107,15 +94,26 @@ def exp(value):
     negative_ones  = tf.ones_like(input=value)
     positive_value = tf.where(tf.greater_equal(value , 0) , value , tf.ones_like(value)*-1)
     negative_value = tf.where(tf.less(value , 0) , tf.math.abs(value) , tf.ones_like(value)*-1)
+    print(type(tf.constant([1])))
+    print(type(positive_ones))
     #print(negative_value)
     #-----------------positive------------------
     positive_cond_value , positive_min_value , positive_ones_value = tf.while_loop(cond=positive_cond, body=positive_body, loop_vars=[positive_value , 0.0078 , positive_ones])
     negative_cond_value , negative_min_value , negative_ones_value = tf.while_loop(cond=negative_cond, body=negative_body, loop_vars=[negative_value , 0.0039 , negative_ones])
-    
-
+    '''
+    while(positive_cond(positive_value , 0.0078 , positive_ones)):
+        positive_cond_value , positive_min_value , positive_ones_value = positive_body(positive_value , 0.0078 , positive_ones)
+        positive_value = positive_cond_value
+        positive_ones  = positive_ones_value
+        
+    while(negative_cond(negative_value , 0.0039 , negative_ones)):
+        negative_cond_value , negative_min_value , negative_ones_value = negative_body(negative_value , 0.0039 , negative_ones)
+        negative_value = negative_cond_value
+        negative_ones  = negative_ones_value
+    '''
     return positive_ones_value + negative_ones_value
 
-
-x = tf.constant([0.0 , 1.0 , 6 ,5.3 , -1 , -2, -0.523,-0.4235])
+#x = tf.random.uniform(shape=(1,2,3,4,5))
+x = tf.constant([0.0 , 1.78 , 6 ,5.3 , -1 , -2, -0.523,-0.4235 , -10 ,10])
 x = exp(x)
 print(x)
