@@ -2,28 +2,29 @@ import tensorflow as tf
 import numpy as np
 
 class sigmoid_inference(tf.keras.layers.Layer):
-     def __init__(self):
-         super(sigmoid_inference,self).__init__()
+     #def __init__(self):
+     #    super(sigmoid_inference,self).__init__()
 
      #def build(self,inputs):
      #    print("BUILD SIGMOID CLASS NOW~~~~~~~~~")
 
      def call(self,inputs):
-        print("CALL FUNC ABOUT SIGMOID!!!!!!!!!!!!!!!!!")
+        #print("CALL FUNC ABOUT SIGMOID!!!!!!!!!!!!!!!!!")
+        eps = 1e-5
         value = inputs
         abs_value = tf.math.abs(value)
         tmp = tf.zeros_like(abs_value)
         cond_more_than_5                                            = tf.greater_equal(x=abs_value, y=5.0)
         cond_small_than_5_and_more_than_2point375                   = tf.equal(x=tf.less(abs_value,5.0), y=tf.greater_equal(x=abs_value, y=2.375))
         cond_small_than_2point375_and_more_than_1                   = tf.equal(x=tf.less(abs_value,2.375), y=tf.greater_equal(x=abs_value, y=1.0))
-        cond_small_than_1_and_more_than_0                           = tf.equal(x=tf.less(abs_value,1.0), y=tf.greater_equal(x=abs_value, y=0))
-        number_list_cond_more_than_5                                = tf.where(cond_more_than_5                             , abs_value/abs_value , tmp)
+        cond_small_than_1_and_more_than_0                           = tf.equal(x=tf.less(abs_value,1.0), y=tf.greater_equal(x=abs_value, y=0.0))
+        number_list_cond_more_than_5                                = tf.where(cond_more_than_5                             , 1.0, tmp)
         number_list_cond_small_than_5_and_more_than_2point375       = tf.where(cond_small_than_5_and_more_than_2point375    , abs_value * 0.03125 + 0.84375 , tmp)
         number_list_cond_small_than_2point375_and_more_than_1       = tf.where(cond_small_than_2point375_and_more_than_1    , abs_value * 0.125 + 0.625 , tmp)
         number_list_cond_small_than_1_and_more_than_0               = tf.where(cond_small_than_1_and_more_than_0            , abs_value * 0.25 + 0.5 , tmp)
         result = number_list_cond_more_than_5 +number_list_cond_small_than_5_and_more_than_2point375 + number_list_cond_small_than_2point375_and_more_than_1 + number_list_cond_small_than_1_and_more_than_0
-        #print(tf.shape(result))
-        sign_result = tf.where(tf.less(x=value,y=0),1-result,result)
+        sign_result = tf.where(tf.less(x=value,y=0.0),(1.0-result+eps),result)
+        #print(sign_result)
         return sign_result
 
 def positive_cond(value , min_value , ones):
@@ -98,14 +99,14 @@ def negative_body(value , min_value ,ones):
     return cond_result , min_value ,ones_result
 
 class exp_inference(tf.keras.layers.Layer):
-    def __init__(self):
-        super(exp_inference,self).__init__()
+    #def __init__(self):
+    #    super(exp_inference,self).__init__()
 
     #def build(self,inputs):
     #    print("BUILD EXP CLASS NOW~~~~~~~~~")
 
     def call(self,inputs):
-        print("CALL FUNC ABOUNT EXPPPPPPPPPPPP")
+        #print("CALL FUNC ABOUNT EXPPPPPPPPPPPP")
         value = inputs
         positive_ones  = tf.ones_like(input=value)
         negative_ones  = tf.ones_like(input=value)
@@ -119,6 +120,14 @@ class exp_inference(tf.keras.layers.Layer):
         negative_cond_value , negative_min_value , negative_ones_value = tf.while_loop(cond=negative_cond, body=negative_body, loop_vars=[negative_value , negative_min_value_set , negative_ones])
 
         return tf.add(positive_ones_value,negative_ones_value)
+
+class sigmoid_cross_entropy_with_logits(tf.keras.layers.Layer):
+    #def __init__(self):
+    #    super(exp_inference,self).__init__()
+
+    def call(self,logits,labels):
+        #max(x,0)- x*z + log(1+exp(-abs(x)))
+        return tf.math.maximum(logits,0)-logits*labels + tf.math.log(1+exp_inference()(-tf.math.abs(logits)))
 
 if __name__ == '__main__':
     x = tf.constant([0.0 , 1.78 , 6 ,5.3 , -1 , -2, -0.523,-0.4235 , -10 ,10])
