@@ -709,6 +709,757 @@ module exp_bias_choose_func_layer#(
     end
 endmodule
 
+module fpga_linear_sigmoid_func_layer_PLAN#(
+        parameter data_bit                                              = 16,
+        parameter bias_shift_bit                                        = 999,
+        parameter bias_shift_value                                      = (2 ** bias_shift_bit),
+        //---------------------------------------------cond------------------------------------------------
+        parameter cond_positive_more_than_5_float                       = 5      * bias_shift_value,
+        parameter cond_positive_small_than_5_and_more_than_2_375_float  = 2.375  * bias_shift_value,
+        parameter cond_positive_small_than_2_375_and_more_than_1_float  = 1      * bias_shift_value,
+        parameter cond_positive_small_than_1_and_more_than_0_float      = 0      * bias_shift_value,
+        parameter cond_negative_small_than_0_and_more_than_1_float      = 0      * bias_shift_value,
+        parameter cond_negative_small_than_1_and_more_than_2_375_float  = -1     * bias_shift_value,
+        parameter cond_negative_small_than_2_375_and_more_than_5_float  = -2.375 * bias_shift_value,
+        parameter cond_negative_small_than_5_float                      = -5     * bias_shift_value,
+        //----------------------------------------------bias value----------------------------------------------
+        parameter value_positive_more_than_5_bias_float                 = 1      * bias_shift_value,
+        parameter value_positive_more_than_2_375_bias_float             = 0.84375* bias_shift_value,
+        parameter value_positive_more_than_1_bias_float                 = 0.625  * bias_shift_value,
+        parameter value_positive_more_than_0_bias_float                 = 0.5    * bias_shift_value,
+        parameter value_negative_small_than_0_bias_float                = 0.5    * bias_shift_value,
+        parameter value_negative_small_than_1_bias_float                = 0.375  * bias_shift_value,
+        parameter value_negative_small_than_2_375_bias_float            = 0.15625* bias_shift_value,
+        parameter value_negative_small_than_5_bias_float                = 0      * bias_shift_value
+    )(
+        input   rst,
+        input   M_AXI_ACLK,
+        input                [2:0]          repair_bit,
+        input        signed  [data_bit-1:0] input_data,
+        output  reg  signed  [data_bit-1:0] output_data_alpha,
+        output  reg  signed  [data_bit-1:0] output_data_beta
+    );
+
+        wire [data_bit-1:0] cond_positive_more_than_5_reg                       = cond_positive_more_than_5_float                     ;
+        wire [data_bit-1:0] cond_positive_small_than_5_and_more_than_2_375_reg  = cond_positive_small_than_5_and_more_than_2_375_float;
+        wire [data_bit-1:0] cond_positive_small_than_2_375_and_more_than_1_reg  = cond_positive_small_than_2_375_and_more_than_1_float;
+        wire [data_bit-1:0] cond_positive_small_than_1_and_more_than_0_reg      = cond_positive_small_than_1_and_more_than_0_float    ;
+        wire [data_bit-1:0] cond_negative_small_than_0_and_more_than_1_reg      = cond_negative_small_than_0_and_more_than_1_float    ;
+        wire [data_bit-1:0] cond_negative_small_than_1_and_more_than_2_375_reg  = cond_negative_small_than_1_and_more_than_2_375_float;
+        wire [data_bit-1:0] cond_negative_small_than_2_375_and_more_than_5_reg  = cond_negative_small_than_2_375_and_more_than_5_float;
+        wire [data_bit-1:0] cond_negative_small_than_5_reg                      = cond_negative_small_than_5_float                    ;
+        wire [data_bit-1:0] value_positive_more_than_5_bias_reg                 = value_positive_more_than_5_bias_float               ;
+        wire [data_bit-1:0] value_positive_more_than_2_375_bias_reg             = value_positive_more_than_2_375_bias_float           ;
+        wire [data_bit-1:0] value_positive_more_than_1_bias_reg                 = value_positive_more_than_1_bias_float               ;
+        wire [data_bit-1:0] value_positive_more_than_0_bias_reg                 = value_positive_more_than_0_bias_float               ;
+        wire [data_bit-1:0] value_negative_small_than_0_bias_reg                = value_negative_small_than_0_bias_float              ;
+        wire [data_bit-1:0] value_negative_small_than_1_bias_reg                = value_negative_small_than_1_bias_float              ;
+        wire [data_bit-1:0] value_negative_small_than_2_375_bias_reg            = value_negative_small_than_2_375_bias_float          ;
+        wire [data_bit-1:0] value_negative_small_than_5_bias_reg                = value_negative_small_than_5_bias_float              ;
+
+        wire [data_bit-1:0] cond_positive_more_than_5                           = cond_positive_more_than_5_reg                         >>> repair_bit;
+        wire [data_bit-1:0] cond_positive_small_than_5_and_more_than_2_375      = cond_positive_small_than_5_and_more_than_2_375_reg    >>> repair_bit;
+        wire [data_bit-1:0] cond_positive_small_than_2_375_and_more_than_1      = cond_positive_small_than_2_375_and_more_than_1_reg    >>> repair_bit;
+        wire [data_bit-1:0] cond_positive_small_than_1_and_more_than_0          = cond_positive_small_than_1_and_more_than_0_reg        >>> repair_bit;
+        wire [data_bit-1:0] cond_negative_small_than_0_and_more_than_1          = cond_negative_small_than_0_and_more_than_1_reg        >>> repair_bit;
+        wire [data_bit-1:0] cond_negative_small_than_1_and_more_than_2_375      = cond_negative_small_than_1_and_more_than_2_375_reg    >>> repair_bit;
+        wire [data_bit-1:0] cond_negative_small_than_2_375_and_more_than_5      = cond_negative_small_than_2_375_and_more_than_5_reg    >>> repair_bit;
+        wire [data_bit-1:0] cond_negative_small_than_5                          = cond_negative_small_than_5_reg                        >>> repair_bit;
+        wire [data_bit-1:0] value_positive_more_than_5_bias                     = value_positive_more_than_5_bias_reg                   >>> repair_bit;
+        wire [data_bit-1:0] value_positive_more_than_2_375_bias                 = value_positive_more_than_2_375_bias_reg               >>> repair_bit;
+        wire [data_bit-1:0] value_positive_more_than_1_bias                     = value_positive_more_than_1_bias_reg                   >>> repair_bit;
+        wire [data_bit-1:0] value_positive_more_than_0_bias                     = value_positive_more_than_0_bias_reg                   >>> repair_bit;
+        wire [data_bit-1:0] value_negative_small_than_0_bias                    = value_negative_small_than_0_bias_reg                  >>> repair_bit;
+        wire [data_bit-1:0] value_negative_small_than_1_bias                    = value_negative_small_than_1_bias_reg                  >>> repair_bit;
+        wire [data_bit-1:0] value_negative_small_than_2_375_bias                = value_negative_small_than_2_375_bias_reg              >>> repair_bit;
+        wire [data_bit-1:0] value_negative_small_than_5_bias                    = value_negative_small_than_5_bias_reg                  >>> repair_bit; 
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)begin
+                output_data_alpha <= 0;
+                output_data_beta  <= 0;
+            end else if(input_data>=cond_positive_more_than_5)begin
+                output_data_alpha <= 0;
+                output_data_beta  <= value_positive_more_than_5_bias;
+            end else if((input_data < cond_positive_more_than_5) && (input_data > cond_positive_small_than_5_and_more_than_2_375))begin
+                output_data_alpha <= (input_data >> 5);
+                output_data_beta  <= value_positive_more_than_2_375_bias;
+            end else if((input_data < cond_positive_small_than_5_and_more_than_2_375) && (input_data > cond_positive_small_than_2_375_and_more_than_1))begin
+                output_data_alpha <= (input_data >> 3);
+                output_data_beta  <= value_positive_more_than_1_bias;
+            end else if((input_data < cond_positive_small_than_2_375_and_more_than_1) && (input_data > cond_positive_small_than_1_and_more_than_0))begin
+                output_data_alpha <= (input_data >> 2);
+                output_data_beta  <= value_positive_more_than_0_bias;
+            end else if((input_data < cond_negative_small_than_5))begin
+                output_data_alpha <= 0;
+                output_data_beta  <= value_negative_small_than_5_bias;
+            end else if((input_data < cond_negative_small_than_2_375_and_more_than_5) && (input_data > cond_negative_small_than_5))begin
+                output_data_alpha <= (input_data >> 5);
+                output_data_beta  <= value_negative_small_than_2_375_bias;
+            end else if((input_data < cond_negative_small_than_1_and_more_than_2_375) && (input_data > cond_negative_small_than_2_375_and_more_than_5))begin
+                output_data_alpha <= (input_data >> 3);
+                output_data_beta  <= value_negative_small_than_1_bias;
+            end else if((input_data < cond_negative_small_than_0_and_more_than_1) && (input_data > cond_negative_small_than_1_and_more_than_2_375))begin
+                output_data_alpha <= (input_data >> 2);
+                output_data_beta  <= value_negative_small_than_0_bias;
+            end else begin
+                output_data_alpha <= 16'hffff;
+                output_data_beta  <= 16'hffff;
+            end
+        end
+endmodule
+
+module fpga_exp_lookuptable_func_layer_total#(
+        parameter data_bit                          = 16,
+        parameter bias_shift_bit                    = 999,
+        parameter exp_cell                          = 9
+    )(
+        input                   rst,
+        input                   M_AXI_ACLK,
+        input                   [2:0]             repair_bit,
+        input   signed          [data_bit-1:0]    EXP_initial_value,
+        input   signed          [data_bit-1:0]    ORG_input_data,
+        input   signed          [8*(data_bit)-1:0]EXP_input_data     , // FIRST VALUE IS ORG_INPUT_DATA    , TOTOAL NUMBER IS EIGHT
+        input   signed          [8*(data_bit)-1:0]EXP_input_K_data   , // FIRST VALUE IS EXP_INITIAL_VALUE , TOTOAL NUMBER IS EIGHT
+        output  signed          [9*(data_bit)-1:0]output_data_alpha  ,
+        output  signed          [9*(data_bit)-1:0]output_data_beta   ,
+        output  signed          [9*(data_bit)-1:0]output_data_K_alpha,
+        output  signed          [9*(data_bit)-1:0]output_data_K_beta 
+    );
+        wire    signed          [data_bit-1:0] EXP_initial_value_fixed = EXP_initial_value>>>repair_bit;
+
+        fpga_exp_lookuptable_func_layer_0 #(.bias_shift_bit(bias_shift_bit)) exp_layer_0(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .repair_bit(repair_bit),
+            .EXP_initial_value(EXP_initial_value_fixed),
+            .ORG_input_data(ORG_input_data),
+            .output_data_alpha(output_data_alpha[(data_bit-1)-:16]),
+            .output_data_beta(output_data_beta[(data_bit-1)-:16]),
+            .output_data_K_alpha(output_data_K_alpha[(data_bit-1)-:16]),
+            .output_data_K_beta(output_data_K_beta[(data_bit-1)-:16])
+        );
+        fpga_exp_lookuptable_func_layer_1 #(.bias_shift_bit(bias_shift_bit)) exp_layer_1(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .repair_bit(repair_bit),
+            .EXP_initial_value(EXP_input_K_data[(data_bit-1)-:16]),
+            .ORG_input_data(EXP_input_data[(data_bit-1)-:16]),
+            .output_data_alpha(output_data_alpha[(2*data_bit-1)-:16]),
+            .output_data_beta(output_data_beta[(2*data_bit-1)-:16]),
+            .output_data_K_alpha(output_data_K_alpha[(2*data_bit-1)-:16]),
+            .output_data_K_beta(output_data_K_beta[(2*data_bit-1)-:16])
+        );
+        fpga_exp_lookuptable_func_layer_2 #(.bias_shift_bit(bias_shift_bit)) exp_layer_2(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .repair_bit(repair_bit),
+            .EXP_initial_value(EXP_input_K_data[(2*data_bit-1)-:16]),
+            .ORG_input_data(EXP_input_data[(2*data_bit-1)-:16]),
+            .output_data_alpha(output_data_alpha[(3*data_bit-1)-:16]),
+            .output_data_beta(output_data_beta[(3*data_bit-1)-:16]),
+            .output_data_K_alpha(output_data_K_alpha[(3*data_bit-1)-:16]),
+            .output_data_K_beta(output_data_K_beta[(3*data_bit-1)-:16])
+        );
+        fpga_exp_lookuptable_func_layer_3 #(.bias_shift_bit(bias_shift_bit)) exp_layer_3(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .repair_bit(repair_bit),
+            .EXP_initial_value(EXP_input_K_data[(3*data_bit-1)-:16]),
+            .ORG_input_data(EXP_input_data[(3*data_bit-1)-:16]),
+            .output_data_alpha(output_data_alpha[(4*data_bit-1)-:16]),
+            .output_data_beta(output_data_beta[(4*data_bit-1)-:16]),
+            .output_data_K_alpha(output_data_K_alpha[(4*data_bit-1)-:16]),
+            .output_data_K_beta(output_data_K_beta[(4*data_bit-1)-:16])
+        );
+        fpga_exp_lookuptable_func_layer_4 #(.bias_shift_bit(bias_shift_bit)) exp_layer_4(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .repair_bit(repair_bit),
+            .EXP_initial_value(EXP_input_K_data[(4*data_bit-1)-:16]),
+            .ORG_input_data(EXP_input_data[(4*data_bit-1)-:16]),
+            .output_data_alpha(output_data_alpha[(5*data_bit-1)-:16]),
+            .output_data_beta(output_data_beta[(5*data_bit-1)-:16]),
+            .output_data_K_alpha(output_data_K_alpha[(5*data_bit-1)-:16]),
+            .output_data_K_beta(output_data_K_beta[(5*data_bit-1)-:16])
+        );
+        fpga_exp_lookuptable_func_layer_5 #(.bias_shift_bit(bias_shift_bit)) exp_layer_5(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .repair_bit(repair_bit),
+            .EXP_initial_value(EXP_input_K_data[(5*data_bit-1)-:16]),
+            .ORG_input_data(EXP_input_data[(5*data_bit-1)-:16]),
+            .output_data_alpha(output_data_alpha[(6*data_bit-1)-:16]),
+            .output_data_beta(output_data_beta[(6*data_bit-1)-:16]),
+            .output_data_K_alpha(output_data_K_alpha[(6*data_bit-1)-:16]),
+            .output_data_K_beta(output_data_K_beta[(6*data_bit-1)-:16])
+        );
+        fpga_exp_lookuptable_func_layer_6 #(.bias_shift_bit(bias_shift_bit)) exp_layer_6(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .repair_bit(repair_bit),
+            .EXP_initial_value(EXP_input_K_data[(6*data_bit-1)-:16]),
+            .ORG_input_data(EXP_input_data[(6*data_bit-1)-:16]),
+            .output_data_alpha(output_data_alpha[(7*data_bit-1)-:16]),
+            .output_data_beta(output_data_beta[(7*data_bit-1)-:16]),
+            .output_data_K_alpha(output_data_K_alpha[(7*data_bit-1)-:16]),
+            .output_data_K_beta(output_data_K_beta[(7*data_bit-1)-:16])
+        );
+        fpga_exp_lookuptable_func_layer_7 #(.bias_shift_bit(bias_shift_bit)) exp_layer_7(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .repair_bit(repair_bit),
+            .EXP_initial_value(EXP_input_K_data[(7*data_bit-1)-:16]),
+            .ORG_input_data(EXP_input_data[(7*data_bit-1)-:16]),
+            .output_data_alpha(output_data_alpha[(8*data_bit-1)-:16]),
+            .output_data_beta(output_data_beta[(8*data_bit-1)-:16]),
+            .output_data_K_alpha(output_data_K_alpha[(8*data_bit-1)-:16]),
+            .output_data_K_beta(output_data_K_beta[(8*data_bit-1)-:16])
+        );
+        fpga_exp_lookuptable_func_layer_8 #(.bias_shift_bit(bias_shift_bit)) exp_layer_8(
+            .M_AXI_ACLK(M_AXI_ACLK),
+            .rst(rst),
+            .repair_bit(repair_bit),
+            .EXP_initial_value(EXP_input_K_data[(8*data_bit-1)-:16]),
+            .ORG_input_data(EXP_input_data[(8*data_bit-1)-:16]),
+            .output_data_alpha(output_data_alpha[(9*data_bit-1)-:16]),
+            .output_data_beta(output_data_beta[(9*data_bit-1)-:16]),
+            .output_data_K_alpha(output_data_K_alpha[(9*data_bit-1)-:16]),
+            .output_data_K_beta(output_data_K_beta[(9*data_bit-1)-:16])
+        );
+endmodule
+
+module fpga_exp_lookuptable_func_layer_0#(
+        parameter data_bit                          = 16,
+        parameter bias_shift_bit                    = 999,
+        parameter bias_shift_value                  = (2**bias_shift_bit),
+        parameter cond_positive_K_value_float       = 1.3863 * bias_shift_value,   // in condition the positive and negative dont be reverse , so condition the negative is correct
+        parameter cond_negative_K_value_float       = -1.3863 * bias_shift_value,  // in condition the positive and negative dont be reverse , so condition the positive is correct
+        parameter export_positive_K_value_float     = -1.3863 * bias_shift_value,  // in export the positive and negative must be reverse
+        parameter export_negative_K_value_float     = 1.3863 * bias_shift_value,   // in export the positive and negative must be reverse
+        parameter positive_min_value_float          = 0.0078 * bias_shift_value,
+        parameter negative_max_value_float          = -0.0039 * bias_shift_value
+    )(
+        input                   rst,
+        input                   M_AXI_ACLK,
+        input                   [2:0] repair_bit,
+        input   signed          [data_bit-1:0]EXP_initial_value,
+        input   signed          [data_bit-1:0]ORG_input_data,
+        output  reg  signed     [data_bit-1:0]output_data_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_beta,
+        output  reg  signed     [data_bit-1:0]output_data_K_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_K_beta
+    );
+        wire signed [data_bit-1:0]cond_positive_K_value_reg_no_fixed    = cond_positive_K_value_float;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg_no_fixed    = cond_negative_K_value_float;
+        wire signed [data_bit-1:0]export_positive_K_value_reg_no_fixed  = export_positive_K_value_float;
+        wire signed [data_bit-1:0]export_negative_K_value_reg_no_fixed  = export_negative_K_value_float;
+        wire signed [data_bit-1:0]positive_min_value_reg_no_fixed       = positive_min_value_float;
+        wire signed [data_bit-1:0]negative_max_value_float_no_fixed     = negative_max_value_float;
+        wire signed [data_bit-1:0]cond_positive_K_value_reg             = cond_positive_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg             = cond_negative_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]export_positive_K_value_reg           = export_positive_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]export_negative_K_value_reg           = export_negative_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]positive_min_value_reg                = positive_min_value_reg_no_fixed       >>>repair_bit;
+        wire signed [data_bit-1:0]negative_max_value_reg                = negative_max_value_float_no_fixed     >>>repair_bit;
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)begin
+                output_data_alpha   <= 0;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= 0;
+                output_data_K_beta  <= 0;
+            end else if((ORG_input_data > cond_positive_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value<<<2;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_positive_K_value_reg;
+            end else if((ORG_input_data < cond_negative_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value>>>2;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_negative_K_value_reg;
+            end else begin
+                output_data_alpha   <= EXP_initial_value  ;
+                output_data_beta    <= 0                  ;
+                output_data_K_alpha <= ORG_input_data     ;
+                output_data_K_beta  <= 0                  ;
+            end
+        end
+endmodule
+
+module fpga_exp_lookuptable_func_layer_1#(
+        parameter data_bit                          = 16,
+        parameter bias_shift_bit                    = 999,
+        parameter bias_shift_value                  = (2**bias_shift_bit),
+        parameter cond_positive_K_value_float       = 0.6931 * bias_shift_value,   // in condition the positive and negative dont be reverse , so condition the negative is correct
+        parameter cond_negative_K_value_float       = -0.6931 * bias_shift_value,  // in condition the positive and negative dont be reverse , so condition the positive is correct
+        parameter export_positive_K_value_float     = -0.6931 * bias_shift_value,  // in export the positive and negative must be reverse
+        parameter export_negative_K_value_float     = 0.6931 * bias_shift_value,   // in export the positive and negative must be reverse
+        parameter positive_min_value_float          = 0.0078 * bias_shift_value,
+        parameter negative_max_value_float          = -0.0039 * bias_shift_value
+    )(
+        input                   rst,
+        input                   M_AXI_ACLK,
+        input                   [2:0]repair_bit,
+        input   signed          [data_bit-1:0]EXP_initial_value,
+        input   signed          [data_bit-1:0]ORG_input_data,
+        output  reg  signed     [data_bit-1:0]output_data_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_beta,
+        output  reg  signed     [data_bit-1:0]output_data_K_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_K_beta
+    );
+        wire signed [data_bit-1:0]cond_positive_K_value_reg_no_fixed    = cond_positive_K_value_float;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg_no_fixed    = cond_negative_K_value_float;
+        wire signed [data_bit-1:0]export_positive_K_value_reg_no_fixed  = export_positive_K_value_float;
+        wire signed [data_bit-1:0]export_negative_K_value_reg_no_fixed  = export_negative_K_value_float;
+        wire signed [data_bit-1:0]positive_min_value_reg_no_fixed       = positive_min_value_float;
+        wire signed [data_bit-1:0]negative_max_value_float_no_fixed     = negative_max_value_float;
+        wire signed [data_bit-1:0]cond_positive_K_value_reg             = cond_positive_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg             = cond_negative_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]export_positive_K_value_reg           = export_positive_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]export_negative_K_value_reg           = export_negative_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]positive_min_value_reg                = positive_min_value_reg_no_fixed       >>>repair_bit;
+        wire signed [data_bit-1:0]negative_max_value_reg                = negative_max_value_float_no_fixed     >>>repair_bit;
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)begin
+                output_data_alpha   <= 0;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= 0;
+                output_data_K_beta  <= 0;
+            end else if((ORG_input_data > cond_positive_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value<<<1;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_positive_K_value_reg;
+            end else if((ORG_input_data < cond_negative_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value>>>1;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_negative_K_value_reg;
+            end else begin
+                output_data_alpha   <= EXP_initial_value  ;
+                output_data_beta    <= 0                  ;
+                output_data_K_alpha <= ORG_input_data     ;
+                output_data_K_beta  <= 0                  ;
+            end
+        end
+endmodule
+
+module fpga_exp_lookuptable_func_layer_2#(
+        parameter data_bit                          = 16,
+        parameter bias_shift_bit                    = 999,
+        parameter bias_shift_value                  = (2**bias_shift_bit),
+        parameter cond_positive_K_value_float       = 0.4055 * bias_shift_value,   // in condition the positive and negative dont be reverse , so condition the negative is correct
+        parameter cond_negative_K_value_float       = -0.2877 * bias_shift_value,  // in condition the positive and negative dont be reverse , so condition the positive is correct
+        parameter export_positive_K_value_float     = -0.4055 * bias_shift_value,  // in export the positive and negative must be reverse
+        parameter export_negative_K_value_float     = 0.2877 * bias_shift_value,   // in export the positive and negative must be reverse
+        parameter positive_min_value_float          = 0.0078 * bias_shift_value,
+        parameter negative_max_value_float          = -0.0039 * bias_shift_value
+    )(
+        input                   rst,
+        input                   M_AXI_ACLK,
+        input                   [2:0]repair_bit,
+        input   signed          [data_bit-1:0]EXP_initial_value,
+        input   signed          [data_bit-1:0]ORG_input_data,
+        output  reg  signed     [data_bit-1:0]output_data_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_beta,
+        output  reg  signed     [data_bit-1:0]output_data_K_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_K_beta
+    );
+        wire signed [data_bit-1:0]cond_positive_K_value_reg_no_fixed    = cond_positive_K_value_float;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg_no_fixed    = cond_negative_K_value_float;
+        wire signed [data_bit-1:0]export_positive_K_value_reg_no_fixed  = export_positive_K_value_float;
+        wire signed [data_bit-1:0]export_negative_K_value_reg_no_fixed  = export_negative_K_value_float;
+        wire signed [data_bit-1:0]positive_min_value_reg_no_fixed       = positive_min_value_float;
+        wire signed [data_bit-1:0]negative_max_value_float_no_fixed     = negative_max_value_float;
+        wire signed [data_bit-1:0]cond_positive_K_value_reg             = cond_positive_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg             = cond_negative_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]export_positive_K_value_reg           = export_positive_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]export_negative_K_value_reg           = export_negative_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]positive_min_value_reg                = positive_min_value_reg_no_fixed       >>>repair_bit;
+        wire signed [data_bit-1:0]negative_max_value_reg                = negative_max_value_float_no_fixed     >>>repair_bit;
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)begin
+                output_data_alpha   <= 0;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= 0;
+                output_data_K_beta  <= 0;
+            end else if((ORG_input_data > cond_positive_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>1;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_positive_K_value_reg;
+            end else if((ORG_input_data < cond_negative_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>2;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_negative_K_value_reg;
+           end else begin
+                output_data_alpha   <= EXP_initial_value  ;
+                output_data_beta    <= 0                  ;
+                output_data_K_alpha <= ORG_input_data     ;
+                output_data_K_beta  <= 0                  ;
+            end
+        end
+endmodule
+
+module fpga_exp_lookuptable_func_layer_3#(
+        parameter data_bit                          = 16,
+        parameter bias_shift_bit                    = 999,
+        parameter bias_shift_value                  = (2**bias_shift_bit),
+        parameter cond_positive_K_value_float       = 0.2231 * bias_shift_value,   // in condition the positive and negative dont be reverse , so condition the negative is correct
+        parameter cond_negative_K_value_float       = -0.1335 * bias_shift_value,  // in condition the positive and negative dont be reverse , so condition the positive is correct
+        parameter export_positive_K_value_float     = -0.2231 * bias_shift_value,  // in export the positive and negative must be reverse
+        parameter export_negative_K_value_float     = 0.1335 * bias_shift_value,   // in export the positive and negative must be reverse
+        parameter positive_min_value_float          = 0.0078 * bias_shift_value,
+        parameter negative_max_value_float          = -0.0039 * bias_shift_value
+    )(
+        input                   rst,
+        input                   M_AXI_ACLK,
+        input                   [2:0]repair_bit,
+        input   signed          [data_bit-1:0]EXP_initial_value,
+        input   signed          [data_bit-1:0]ORG_input_data,
+        output  reg  signed     [data_bit-1:0]output_data_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_beta,
+        output  reg  signed     [data_bit-1:0]output_data_K_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_K_beta
+    );
+        wire signed [data_bit-1:0]cond_positive_K_value_reg_no_fixed    = cond_positive_K_value_float;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg_no_fixed    = cond_negative_K_value_float;
+        wire signed [data_bit-1:0]export_positive_K_value_reg_no_fixed  = export_positive_K_value_float;
+        wire signed [data_bit-1:0]export_negative_K_value_reg_no_fixed  = export_negative_K_value_float;
+        wire signed [data_bit-1:0]positive_min_value_reg_no_fixed       = positive_min_value_float;
+        wire signed [data_bit-1:0]negative_max_value_float_no_fixed     = negative_max_value_float;
+        wire signed [data_bit-1:0]cond_positive_K_value_reg             = cond_positive_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg             = cond_negative_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]export_positive_K_value_reg           = export_positive_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]export_negative_K_value_reg           = export_negative_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]positive_min_value_reg                = positive_min_value_reg_no_fixed       >>>repair_bit;
+        wire signed [data_bit-1:0]negative_max_value_reg                = negative_max_value_float_no_fixed     >>>repair_bit;
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)begin
+                output_data_alpha   <= 0;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= 0;
+                output_data_K_beta  <= 0;
+            end else if((ORG_input_data > cond_positive_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>2;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_positive_K_value_reg;
+            end else if((ORG_input_data < cond_negative_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>3;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_negative_K_value_reg;
+            end else begin
+                output_data_alpha   <= EXP_initial_value  ;
+                output_data_beta    <= 0                  ;
+                output_data_K_alpha <= ORG_input_data     ;
+                output_data_K_beta  <= 0                  ;
+            end
+        end
+endmodule
+
+module fpga_exp_lookuptable_func_layer_4#(
+        parameter data_bit                          = 16,
+        parameter bias_shift_bit                    = 999,
+        parameter bias_shift_value                  = (2**bias_shift_bit),
+        parameter cond_positive_K_value_float       = 0.1178 * bias_shift_value,   // in condition the positive and negative dont be reverse , so condition the negative is correct
+        parameter cond_negative_K_value_float       = -0.0645 * bias_shift_value,  // in condition the positive and negative dont be reverse , so condition the positive is correct
+        parameter export_positive_K_value_float     = -0.1178 * bias_shift_value,  // in export the positive and negative must be reverse
+        parameter export_negative_K_value_float     = 0.0645 * bias_shift_value,   // in export the positive and negative must be reverse
+        parameter positive_min_value_float          = 0.0078 * bias_shift_value,
+        parameter negative_max_value_float          = -0.0039 * bias_shift_value
+    )(
+        input                   rst,
+        input                   M_AXI_ACLK,
+        input                   [2:0]repair_bit,
+        input   signed          [data_bit-1:0]EXP_initial_value,
+        input   signed          [data_bit-1:0]ORG_input_data,
+        output  reg  signed     [data_bit-1:0]output_data_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_beta,
+        output  reg  signed     [data_bit-1:0]output_data_K_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_K_beta
+    );
+        wire signed [data_bit-1:0]cond_positive_K_value_reg_no_fixed    = cond_positive_K_value_float;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg_no_fixed    = cond_negative_K_value_float;
+        wire signed [data_bit-1:0]export_positive_K_value_reg_no_fixed  = export_positive_K_value_float;
+        wire signed [data_bit-1:0]export_negative_K_value_reg_no_fixed  = export_negative_K_value_float;
+        wire signed [data_bit-1:0]positive_min_value_reg_no_fixed       = positive_min_value_float;
+        wire signed [data_bit-1:0]negative_max_value_float_no_fixed     = negative_max_value_float;
+        wire signed [data_bit-1:0]cond_positive_K_value_reg             = cond_positive_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg             = cond_negative_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]export_positive_K_value_reg           = export_positive_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]export_negative_K_value_reg           = export_negative_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]positive_min_value_reg                = positive_min_value_reg_no_fixed       >>>repair_bit;
+        wire signed [data_bit-1:0]negative_max_value_reg                = negative_max_value_float_no_fixed     >>>repair_bit;
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)begin
+                output_data_alpha   <= 0;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= 0;
+                output_data_K_beta  <= 0;
+            end else if((ORG_input_data > cond_positive_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>3;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_positive_K_value_reg;
+            end else if((ORG_input_data < cond_negative_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>4;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_negative_K_value_reg;
+            end else begin
+                output_data_alpha   <= EXP_initial_value  ;
+                output_data_beta    <= 0                  ;
+                output_data_K_alpha <= ORG_input_data     ;
+                output_data_K_beta  <= 0                  ;
+            end
+        end
+endmodule
+
+module fpga_exp_lookuptable_func_layer_5#(
+        parameter data_bit                          = 16,
+        parameter bias_shift_bit                    = 999,
+        parameter bias_shift_value                  = (2**bias_shift_bit),
+        parameter cond_positive_K_value_float       = 0.0606 * bias_shift_value,   // in condition the positive and negative dont be reverse , so condition the negative is correct
+        parameter cond_negative_K_value_float       = -0.0317 * bias_shift_value,  // in condition the positive and negative dont be reverse , so condition the positive is correct
+        parameter export_positive_K_value_float     = -0.0606 * bias_shift_value,  // in export the positive and negative must be reverse
+        parameter export_negative_K_value_float     = 0.0317 * bias_shift_value,   // in export the positive and negative must be reverse
+        parameter positive_min_value_float          = 0.0078 * bias_shift_value,
+        parameter negative_max_value_float          = -0.0039 * bias_shift_value
+    )(
+        input                   rst,
+        input                   M_AXI_ACLK,
+        input                   [2:0]repair_bit,
+        input   signed          [data_bit-1:0]EXP_initial_value,
+        input   signed          [data_bit-1:0]ORG_input_data,
+        output  reg  signed     [data_bit-1:0]output_data_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_beta,
+        output  reg  signed     [data_bit-1:0]output_data_K_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_K_beta
+    );
+        wire signed [data_bit-1:0]cond_positive_K_value_reg_no_fixed    = cond_positive_K_value_float;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg_no_fixed    = cond_negative_K_value_float;
+        wire signed [data_bit-1:0]export_positive_K_value_reg_no_fixed  = export_positive_K_value_float;
+        wire signed [data_bit-1:0]export_negative_K_value_reg_no_fixed  = export_negative_K_value_float;
+        wire signed [data_bit-1:0]positive_min_value_reg_no_fixed       = positive_min_value_float;
+        wire signed [data_bit-1:0]negative_max_value_float_no_fixed     = negative_max_value_float;
+        wire signed [data_bit-1:0]cond_positive_K_value_reg             = cond_positive_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg             = cond_negative_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]export_positive_K_value_reg           = export_positive_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]export_negative_K_value_reg           = export_negative_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]positive_min_value_reg                = positive_min_value_reg_no_fixed       >>>repair_bit;
+        wire signed [data_bit-1:0]negative_max_value_reg                = negative_max_value_float_no_fixed     >>>repair_bit;
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)begin
+                output_data_alpha   <= 0;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= 0;
+                output_data_K_beta  <= 0;
+            end else if((ORG_input_data > cond_positive_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>4;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_positive_K_value_reg;
+            end else if((ORG_input_data < cond_negative_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>5;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_negative_K_value_reg;
+            end else begin
+                output_data_alpha   <= EXP_initial_value  ;
+                output_data_beta    <= 0                  ;
+                output_data_K_alpha <= ORG_input_data     ;
+                output_data_K_beta  <= 0                  ;
+            end
+        end
+endmodule
+
+module fpga_exp_lookuptable_func_layer_6#(
+        parameter data_bit                          = 16,
+        parameter bias_shift_bit                    = 999,
+        parameter bias_shift_value                  = (2**bias_shift_bit),
+        parameter cond_positive_K_value_float       = 0.0308 * bias_shift_value,   // in condition the positive and negative dont be reverse , so condition the negative is correct
+        parameter cond_negative_K_value_float       = -0.0157 * bias_shift_value,  // in condition the positive and negative dont be reverse , so condition the positive is correct
+        parameter export_positive_K_value_float     = -0.0308 * bias_shift_value,  // in export the positive and negative must be reverse
+        parameter export_negative_K_value_float     = 0.0157 * bias_shift_value,   // in export the positive and negative must be reverse
+        parameter positive_min_value_float          = 0.0078 * bias_shift_value,
+        parameter negative_max_value_float          = -0.0039 * bias_shift_value
+    )(
+        input                   rst,
+        input                   M_AXI_ACLK,
+        input                   [2:0]repair_bit,
+        input   signed          [data_bit-1:0]EXP_initial_value,
+        input   signed          [data_bit-1:0]ORG_input_data,
+        output  reg  signed     [data_bit-1:0]output_data_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_beta,
+        output  reg  signed     [data_bit-1:0]output_data_K_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_K_beta
+    );
+        wire signed [data_bit-1:0]cond_positive_K_value_reg_no_fixed    = cond_positive_K_value_float;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg_no_fixed    = cond_negative_K_value_float;
+        wire signed [data_bit-1:0]export_positive_K_value_reg_no_fixed  = export_positive_K_value_float;
+        wire signed [data_bit-1:0]export_negative_K_value_reg_no_fixed  = export_negative_K_value_float;
+        wire signed [data_bit-1:0]positive_min_value_reg_no_fixed       = positive_min_value_float;
+        wire signed [data_bit-1:0]negative_max_value_float_no_fixed     = negative_max_value_float;
+        wire signed [data_bit-1:0]cond_positive_K_value_reg             = cond_positive_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg             = cond_negative_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]export_positive_K_value_reg           = export_positive_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]export_negative_K_value_reg           = export_negative_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]positive_min_value_reg                = positive_min_value_reg_no_fixed       >>>repair_bit;
+        wire signed [data_bit-1:0]negative_max_value_reg                = negative_max_value_float_no_fixed     >>>repair_bit;
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)begin
+                output_data_alpha   <= 0;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= 0;
+                output_data_K_beta  <= 0;
+            end else if((ORG_input_data > cond_positive_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>5;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_positive_K_value_reg;
+            end else if((ORG_input_data < cond_negative_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>6;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_negative_K_value_reg;
+            end else begin
+                output_data_alpha   <= EXP_initial_value  ;
+                output_data_beta    <= 0                  ;
+                output_data_K_alpha <= ORG_input_data     ;
+                output_data_K_beta  <= 0                  ;
+            end
+        end
+endmodule
+
+module fpga_exp_lookuptable_func_layer_7#(
+        parameter data_bit                          = 16,
+        parameter bias_shift_bit                    = 999,
+        parameter bias_shift_value                  = (2**bias_shift_bit),
+        parameter cond_positive_K_value_float       = 0.0155 * bias_shift_value,   // in condition the positive and negative dont be reverse , so condition the negative is correct
+        parameter cond_negative_K_value_float       = -0.0078 * bias_shift_value,  // in condition the positive and negative dont be reverse , so condition the positive is correct
+        parameter export_positive_K_value_float     = -0.0155 * bias_shift_value,  // in export the positive and negative must be reverse
+        parameter export_negative_K_value_float     = 0.0078 * bias_shift_value,   // in export the positive and negative must be reverse
+        parameter positive_min_value_float          = 0.0078 * bias_shift_value,
+        parameter negative_max_value_float          = -0.0039 * bias_shift_value
+    )(
+        input                   rst,
+        input                   M_AXI_ACLK,
+        input                   [2:0]repair_bit,
+        input   signed          [data_bit-1:0]EXP_initial_value,
+        input   signed          [data_bit-1:0]ORG_input_data,
+        output  reg  signed     [data_bit-1:0]output_data_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_beta,
+        output  reg  signed     [data_bit-1:0]output_data_K_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_K_beta
+    );
+        wire signed [data_bit-1:0]cond_positive_K_value_reg_no_fixed    = cond_positive_K_value_float;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg_no_fixed    = cond_negative_K_value_float;
+        wire signed [data_bit-1:0]export_positive_K_value_reg_no_fixed  = export_positive_K_value_float;
+        wire signed [data_bit-1:0]export_negative_K_value_reg_no_fixed  = export_negative_K_value_float;
+        wire signed [data_bit-1:0]positive_min_value_reg_no_fixed       = positive_min_value_float;
+        wire signed [data_bit-1:0]negative_max_value_float_no_fixed     = negative_max_value_float;
+        wire signed [data_bit-1:0]cond_positive_K_value_reg             = cond_positive_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg             = cond_negative_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]export_positive_K_value_reg           = export_positive_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]export_negative_K_value_reg           = export_negative_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]positive_min_value_reg                = positive_min_value_reg_no_fixed       >>>repair_bit;
+        wire signed [data_bit-1:0]negative_max_value_reg                = negative_max_value_float_no_fixed     >>>repair_bit;
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)begin
+                output_data_alpha   <= 0;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= 0;
+                output_data_K_beta  <= 0;
+            end else if((ORG_input_data > cond_positive_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>6;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_positive_K_value_reg;
+            end else if((ORG_input_data < cond_negative_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>7;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_negative_K_value_reg;
+            end else begin
+                output_data_alpha   <= EXP_initial_value  ;
+                output_data_beta    <= 0                  ;
+                output_data_K_alpha <= ORG_input_data     ;
+                output_data_K_beta  <= 0                  ;
+            end
+        end
+endmodule
+
+module fpga_exp_lookuptable_func_layer_8#(
+        parameter data_bit                          = 16,
+        parameter bias_shift_bit                    = 999,
+        parameter bias_shift_value                  = (2**bias_shift_bit),
+        parameter cond_positive_K_value_float       = 0.0078 * bias_shift_value,   // in condition the positive and negative dont be reverse , so condition the negative is correct
+        parameter cond_negative_K_value_float       = -0.0039 * bias_shift_value,  // in condition the positive and negative dont be reverse , so condition the positive is correct
+        parameter export_positive_K_value_float     = -0.0078 * bias_shift_value,  // in export the positive and negative must be reverse
+        parameter export_negative_K_value_float     = 0.0039 * bias_shift_value,   // in export the positive and negative must be reverse
+        parameter positive_min_value_float          = 0.0078 * bias_shift_value,
+        parameter negative_max_value_float          = -0.0039 * bias_shift_value
+    )(
+        input                   rst,
+        input                   M_AXI_ACLK,
+        input                   [2:0]repair_bit,
+        input   signed          [data_bit-1:0]EXP_initial_value,
+        input   signed          [data_bit-1:0]ORG_input_data,
+        output  reg  signed     [data_bit-1:0]output_data_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_beta,
+        output  reg  signed     [data_bit-1:0]output_data_K_alpha,
+        output  reg  signed     [data_bit-1:0]output_data_K_beta
+    );
+        wire signed [data_bit-1:0]cond_positive_K_value_reg_no_fixed    = cond_positive_K_value_float;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg_no_fixed    = cond_negative_K_value_float;
+        wire signed [data_bit-1:0]export_positive_K_value_reg_no_fixed  = export_positive_K_value_float;
+        wire signed [data_bit-1:0]export_negative_K_value_reg_no_fixed  = export_negative_K_value_float;
+        wire signed [data_bit-1:0]positive_min_value_reg_no_fixed       = positive_min_value_float;
+        wire signed [data_bit-1:0]negative_max_value_float_no_fixed     = negative_max_value_float;
+        wire signed [data_bit-1:0]cond_positive_K_value_reg             = cond_positive_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]cond_negative_K_value_reg             = cond_negative_K_value_reg_no_fixed    >>>repair_bit;
+        wire signed [data_bit-1:0]export_positive_K_value_reg           = export_positive_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]export_negative_K_value_reg           = export_negative_K_value_reg_no_fixed  >>>repair_bit;
+        wire signed [data_bit-1:0]positive_min_value_reg                = positive_min_value_reg_no_fixed       >>>repair_bit;
+        wire signed [data_bit-1:0]negative_max_value_reg                = negative_max_value_float_no_fixed     >>>repair_bit;
+
+        always@(posedge M_AXI_ACLK)begin
+            if(rst)begin
+                output_data_alpha   <= 0;
+                output_data_beta    <= 0;
+                output_data_K_alpha <= 0;
+                output_data_K_beta  <= 0;
+            end else if((ORG_input_data > cond_positive_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>7;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_positive_K_value_reg;
+            end else if((ORG_input_data < cond_negative_K_value_reg))begin
+                output_data_alpha   <= EXP_initial_value;
+                output_data_beta    <= EXP_initial_value>>>8;
+                output_data_K_alpha <= ORG_input_data;
+                output_data_K_beta  <= export_negative_K_value_reg;
+            end else begin
+                output_data_alpha   <= EXP_initial_value  ;
+                output_data_beta    <= 0                  ;
+                output_data_K_alpha <= ORG_input_data     ;
+                output_data_K_beta  <= 0                  ;
+            end
+        end
+endmodule
+
 module process_mul_element#(
         parameter data_bit = 16,
         parameter data_shift = 15
@@ -724,35 +1475,32 @@ module process_mul_element#(
     );
         reg [31:0]tmp_answer;
         
-        assign output_data = tmp_answer[(data_bit-1)-:16];
+        assign output_data = (tmp_answer>>>func_shift_bit)<<<repair_bit;
 
         always@(posedge M_AXI_ACLK)begin
             if(rst)
                 tmp_answer <= 0;
             else
-                tmp_answer <= ((input_data * input_alpha) >>> func_shift_bit) >>> repair_bit;
+                tmp_answer <= (input_data * input_alpha);
         end
 endmodule
 
 module process_add_element#(
-        parameter data_bit = 16,
-        parameter data_shift = 15
+        parameter data_bit = 16
     )(
         input               rst,
         input               M_AXI_ACLK,
-        input               [3:0]repair_bit,
-        input               [data_bit-1:0] func_shift_bit,   //in the mul module , we need to deal with sigmoid and exp func,but sigmoid func only mul alpha = 15bit , exp = 10bit * 10bit or 9bit*9bit
-        //input               [1:0]          func_select_bit,
-        //input               [data_bit-1:0] func_bit,
-        input   signed      [data_bit-1:0] input_data, 
-        input   signed      [data_bit-1:0] input_bias,
+        input   signed      [data_bit-1:0] input_data_alpha, 
+        input   signed      [data_bit-1:0] input_data_beta,
         output  signed      [data_bit-1:0] output_data
     );
         reg [data_bit:0] output_data_tmp;
         
-        assign output_data = output_data_tmp[(data_bit-1)-:16];
+        //assign output_data = output_data_tmp[(data_bit-1)-:16];
+        assign output_data = (output_data_tmp[data_bit]^output_data_tmp[data_bit-1]) ? output_data_tmp[data_bit-:16] : output_data_tmp[(data_bit-1)-:16];
 
         always@(posedge M_AXI_ACLK)begin
-            output_data_tmp <= (input_data + input_bias);
+            output_data_tmp <= (input_data_alpha + input_data_beta);
         end
+
 endmodule
