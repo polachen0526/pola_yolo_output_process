@@ -20,218 +20,334 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 module YOLO_PE_Func_Control#(
-        parameter Data_bit = 16,
-        parameter sigmoid_alpha_shift_bit = 15,
-        parameter sigmoid_bias_shift_bit = 10,
-        parameter exp_alpha_shift_bit = 10,
-        parameter exp_bias_shift_bit = 10,
+        parameter Data_bit        = 16,
+        parameter exp_cell        = 9,
         parameter layer_shift_bit = 10,
-        parameter sigmoid_bias_delay = 3,
-        parameter sigmoid_input_delay= 2,
-        parameter anchor_max_bit = 5 // 8 == max_anchor=211 8bit  , 3 == exp range -2->2 + 1bit range = 8-3=5
+        parameter repair_bit      = 0
     )(
-        input M_AXI_ACLK,
-        input rst,
-        input [Data_bit-1:0] data_parameter,
-        input signed[Data_bit-1:0] data_in_bx0,   // if FSM is box prediction , data_in_bx0 = sigmoid(output_answer_line[0])  else if FSM is IOU , data_in_bx0 = bx0;
-        input signed[Data_bit-1:0] data_in_by0,   // if FSM is box prediction , data_in_by0 = sigmoid(output_answer_line[1])  else if FSM is IOU , data_in_by0 = by0;
-        input signed[Data_bit-1:0] data_in_bw0,   // if FSM is box prediction , data_in_bw0 = exp(output_answer_line[2])      else if FSM is IOU , data_in_bw0 = bw0;
-        input signed[Data_bit-1:0] data_in_bh0,   // if FSM is box prediction , data_in_bh0 = exp(output_answer_line[3])      else if FSM is IOU , data_in_bh0 = bh0;
-        input signed[Data_bit-1:0] data_in_bx1,   // if FSM is box prediction , data_in_bx1 = None                            else if FSM is IOU , data_in_bx1 = bx1;
-        input signed[Data_bit-1:0] data_in_by1,   // if FSM is box prediction , data_in_by1 = None                            else if FSM is IOU , data_in_by1 = by1;
-        input signed[Data_bit-1:0] data_in_bw1,   // if FSM is box prediction , data_in_bw1 = None                            else if FSM is IOU , data_in_bw1 = bw1;
-        input signed[Data_bit-1:0] data_in_bh1    // if FSM is box prediction , data_in_by1 = None                            else if FSM is IOU , data_in_by1 = bh1;
+        input  M_AXI_ACLK,
+        input  rst,
+        input  [1:0]Current_state,
+        input  [Data_bit-1:0] data_parameter,
+        input  signed[Data_bit-1:0] data_in_bx0,   // if FSM is box prediction , data_in_bx0 = sigmoid(output_answer_line[0])  else if FSM is IOU , data_in_bx0 = bx0;
+        input  signed[Data_bit-1:0] data_in_by0,   // if FSM is box prediction , data_in_by0 = sigmoid(output_answer_line[1])  else if FSM is IOU , data_in_by0 = by0;
+        input  signed[Data_bit-1:0] data_in_bw0,   // if FSM is box prediction , data_in_bw0 = exp(output_answer_line[2])      else if FSM is IOU , data_in_bw0 = bw0;
+        input  signed[Data_bit-1:0] data_in_bh0,   // if FSM is box prediction , data_in_bh0 = exp(output_answer_line[3])      else if FSM is IOU , data_in_bh0 = bh0;
+        input  signed[Data_bit-1:0] data_in_bx1,   // if FSM is box prediction , data_in_bx1 = conf                            else if FSM is IOU , data_in_bx1 = bx1;
+        input  signed[Data_bit-1:0] data_in_by1,   // if FSM is box prediction , data_in_by1 = class                           else if FSM is IOU , data_in_by1 = by1;
+        input  signed[Data_bit-1:0] data_in_bw1,   // if FSM is box prediction , data_in_bw1 = index                           else if FSM is IOU , data_in_bw1 = bw1;
+        input  signed[Data_bit-1:0] data_in_bh1,   // if FSM is box prediction , data_in_by1 = None                            else if FSM is IOU , data_in_by1 = bh1;
+        output signed[Data_bit-1:0] data_out_bx,
+        output signed[Data_bit-1:0] data_out_by,
+        output signed[Data_bit-1:0] data_out_bw,
+        output signed[Data_bit-1:0] data_out_bh,
+        output signed[Data_bit-1:0] data_out_conf,
+        output signed[Data_bit-1:0] data_out_class,
+        output signed[Data_bit-1:0] data_out_index
     );
-    //---------------------------------PE module--------------------------------
-        wire       [3:0]repair_bit;
-        wire       signed [Data_bit-1:0]n_value; //present the y location
-        wire       signed [Data_bit-1:0]m_value; //present the x location
-        reg        [Data_bit-1:0]  func_shift_bit;
-        reg        [1:0]           func_select_bit;
-        wire signed[Data_bit-1 : 0]sigmoid_output_alpha[0:1];
-        wire signed[Data_bit-1 : 0]sigmoid_output_bias[0:1];
-        wire signed[Data_bit-1 : 0]exp_output_alpha[0:1];
-        wire signed[Data_bit-1 : 0]exp_output_bias[0:1]; 
-        wire signed[Data_bit-1 : 0]output_data_control_mul[0:5]; 
-        wire signed[Data_bit-1 : 0]output_data_control_add[0:7];
-        reg  [Data_bit-1 : 0]data_parameter_reg[0:3];
-        assign repair_bit = data_parameter[11-:4];//index_register
-        assign n_value    = data_parameter[7-:4]<<<layer_shift_bit;
-        assign m_value    = data_parameter[3-:4]<<<layer_shift_bit;
-
-        //---------------------------------parameter---------------------------------------
+        //---------------------------anyone please dont fix the coding--------------
+        //1.if use the top current_state wire single , this code must broken , not statble
+        reg [1:0]Current_state_YOLO_PE_FUNC_CONTROL;
         always@(posedge M_AXI_ACLK)begin
-            if(rst) begin
-                data_parameter_reg[0] <= 0;
-                data_parameter_reg[1] <= 0;
-                data_parameter_reg[2] <= 0;
-                data_parameter_reg[3] <= 0;
-            end else begin
-                data_parameter_reg[3]<=data_parameter_reg[2];
-                data_parameter_reg[2]<=data_parameter_reg[1];
-                data_parameter_reg[1]<=data_parameter_reg[0];
-                data_parameter_reg[0]<=data_parameter;
-            end
+            if(rst)
+                Current_state_YOLO_PE_FUNC_CONTROL <= 0;
+            else if(Current_state==2'b01)
+                Current_state_YOLO_PE_FUNC_CONTROL <= 1;
+            else if(Current_state==2'b10)
+                Current_state_YOLO_PE_FUNC_CONTROL <= 2;
+            else if(Current_state==2'b11)
+                Current_state_YOLO_PE_FUNC_CONTROL <= 3;
+            else
+                Current_state_YOLO_PE_FUNC_CONTROL <= Current_state_YOLO_PE_FUNC_CONTROL;
         end
 
         //----------------------------------2 sigmoid -------------------------------------
-        fpga_linear_sigmoid_func_layer #(.bias_shift_bit(layer_shift_bit)) sigmoid_layer_0(
+        wire signed[Data_bit-1:0] sigmoid_output_alpha_0 , sigmoid_output_beta_0;
+        wire signed[Data_bit-1:0] sigmoid_output_alpha_1 , sigmoid_output_beta_1;
+        wire [4:0]debug_line_0,debug_line_1;
+
+        fpga_linear_sigmoid_func_layer_PLAN #(.bias_shift_bit(layer_shift_bit)) sigmoid_layer_total_0(
             .M_AXI_ACLK(M_AXI_ACLK),
             .rst(rst),
             .repair_bit(repair_bit),
             .input_data(data_in_bx0),
-            .output_alpha(sigmoid_output_alpha[0]),
-            .output_bias(sigmoid_output_bias[0])
+            .output_data_alpha(sigmoid_output_alpha_0),
+            .output_data_beta(sigmoid_output_beta_0),
+            .debug_line(debug_line_0)
         );
-        fpga_linear_sigmoid_func_layer #(.bias_shift_bit(layer_shift_bit)) sigmoid_layer_1(
+        fpga_linear_sigmoid_func_layer_PLAN #(.bias_shift_bit(layer_shift_bit)) sigmoid_layer_total_1(
             .M_AXI_ACLK(M_AXI_ACLK),
             .rst(rst),
             .repair_bit(repair_bit),
             .input_data(data_in_by0),
-            .output_alpha(sigmoid_output_alpha[1]),
-            .output_bias(sigmoid_output_bias[1])
+            .output_data_alpha(sigmoid_output_alpha_1),
+            .output_data_beta(sigmoid_output_beta_1),
+            .debug_line(debug_line_1)
         );
+
         //----------------------------------2 exp -------------------------------------
-        fpga_exp_lookuptable_func_layer #(.bias_shift_bit(layer_shift_bit)) exp_layer_0(
-            .M_AXI_ACLK(M_AXI_ACLK),
-            .rst(rst),
-            .repair_bit(repair_bit),
-            .input_data(data_in_bw0),
-            .output_alpha(exp_output_alpha[0]),
-            .output_bias(exp_output_bias[0])
+        wire signed[Data_bit-1:0]EXP_initial_value_0    = 1<<<layer_shift_bit;
+        wire signed[Data_bit-1:0]EXP_initial_value_1    = 1<<<layer_shift_bit;
+        wire signed[Data_bit-1:0]ORG_input_data_0       = data_in_bw0;
+        wire signed[Data_bit-1:0]ORG_input_data_1       = data_in_bh0;
+        wire signed[(exp_cell-1)*(Data_bit)-1:0]EXP_input_data_0;
+        wire signed[(exp_cell-1)*(Data_bit)-1:0]EXP_input_data_1;
+        wire signed[(exp_cell-1)*(Data_bit)-1:0]EXP_input_K_data_0;   
+        wire signed[(exp_cell-1)*(Data_bit)-1:0]EXP_input_K_data_1;
+        wire signed[exp_cell*(Data_bit)-1:0]output_data_alpha_0;
+        wire signed[exp_cell*(Data_bit)-1:0]output_data_alpha_1;
+        wire signed[exp_cell*(Data_bit)-1:0]output_data_beta_0;
+        wire signed[exp_cell*(Data_bit)-1:0]output_data_beta_1;
+        wire signed[exp_cell*(Data_bit)-1:0]output_data_K_alpha_0;
+        wire signed[exp_cell*(Data_bit)-1:0]output_data_K_alpha_1;
+        wire signed[exp_cell*(Data_bit)-1:0]output_data_K_beta_0;
+        wire signed[exp_cell*(Data_bit)-1:0]output_data_K_beta_1;
+
+        fpga_exp_lookuptable_func_layer_total #(.bias_shift_bit(layer_shift_bit)) exp_layer_total_0(
+            .M_AXI_ACLK         (M_AXI_ACLK),
+            .rst                (rst),
+            .repair_bit         (repair_bit),
+            .EXP_initial_value  (EXP_initial_value_0),
+            .ORG_input_data     (ORG_input_data_0),
+            .EXP_input_data     (EXP_input_data_0),
+            .EXP_input_K_data   (EXP_input_K_data_0),
+            .output_data_alpha  (output_data_alpha_0),
+            .output_data_beta   (output_data_beta_0),
+            .output_data_K_alpha(output_data_K_alpha_0),
+            .output_data_K_beta (output_data_K_beta_0)
         );
-        fpga_exp_lookuptable_func_layer #(.bias_shift_bit(layer_shift_bit)) exp_layer_1(
-            .M_AXI_ACLK(M_AXI_ACLK),
-            .rst(rst),
-            .repair_bit(repair_bit),
-            .input_data(data_in_bh0),
-            .output_alpha(exp_output_alpha[1]),
-            .output_bias(exp_output_bias[1])
+        fpga_exp_lookuptable_func_layer_total #(.bias_shift_bit(layer_shift_bit)) exp_layer_total_1(
+            .M_AXI_ACLK         (M_AXI_ACLK),
+            .rst                (rst),
+            .repair_bit         (repair_bit),
+            .EXP_initial_value  (EXP_initial_value_1),
+            .ORG_input_data     (ORG_input_data_1),
+            .EXP_input_data     (EXP_input_data_1),   
+            .EXP_input_K_data   (EXP_input_K_data_1),
+            .output_data_alpha  (output_data_alpha_1),
+            .output_data_beta   (output_data_beta_1),
+            .output_data_K_alpha(output_data_K_alpha_1),
+            .output_data_K_beta (output_data_K_beta_1)
         );
+        //--------------------------------data_path_control-----------------------------
+        wire signed[Data_bit-1:0]add_element_1_1_output_data_control , add_element_2_1_output_data_control , add_element_3_1_output_data_control , add_element_4_1_output_data_control , add_element_5_1_output_data_control , add_element_6_1_output_data_control , add_element_7_1_output_data_control , add_element_8_1_output_data_control , add_element_9_1_output_data_control;
+        wire signed[Data_bit-1:0]add_element_1_2_output_data_control , add_element_2_2_output_data_control , add_element_3_2_output_data_control , add_element_4_2_output_data_control , add_element_5_2_output_data_control , add_element_6_2_output_data_control , add_element_7_2_output_data_control , add_element_8_2_output_data_control , add_element_9_2_output_data_control;
+        wire signed[Data_bit-1:0]add_element_1_3_output_data_control , add_element_2_3_output_data_control , add_element_3_3_output_data_control , add_element_4_3_output_data_control , add_element_5_3_output_data_control , add_element_6_3_output_data_control , add_element_7_3_output_data_control , add_element_8_3_output_data_control , add_element_9_3_output_data_control;
+        wire signed[Data_bit-1:0]add_element_1_4_output_data_control , add_element_2_4_output_data_control , add_element_3_4_output_data_control , add_element_4_4_output_data_control , add_element_5_4_output_data_control , add_element_6_4_output_data_control , add_element_7_4_output_data_control , add_element_8_4_output_data_control , add_element_9_4_output_data_control;
+        wire signed[Data_bit-1:0]add_element_1_5_output_data_control , add_element_2_5_output_data_control , add_element_3_5_output_data_control , add_element_4_5_output_data_control , add_element_5_5_output_data_control , add_element_6_5_output_data_control , add_element_7_5_output_data_control , add_element_8_5_output_data_control , add_element_9_5_output_data_control;
+        wire signed[Data_bit-1:0]add_element_1_6_output_data_control , add_element_2_6_output_data_control , add_element_3_6_output_data_control , add_element_4_6_output_data_control , add_element_5_6_output_data_control , add_element_6_6_output_data_control , add_element_7_6_output_data_control , add_element_8_6_output_data_control , add_element_9_6_output_data_control;
+
+        assign EXP_input_data_0   = {add_element_8_3_output_data_control , add_element_7_3_output_data_control , add_element_6_3_output_data_control , add_element_5_3_output_data_control , add_element_4_3_output_data_control , add_element_3_3_output_data_control , add_element_2_3_output_data_control , add_element_1_3_output_data_control};
+        assign EXP_input_data_1   = {add_element_8_4_output_data_control , add_element_7_4_output_data_control , add_element_6_4_output_data_control , add_element_5_4_output_data_control , add_element_4_4_output_data_control , add_element_3_4_output_data_control , add_element_2_4_output_data_control , add_element_1_4_output_data_control};
+        assign EXP_input_K_data_0 = {add_element_8_5_output_data_control , add_element_7_5_output_data_control , add_element_6_5_output_data_control , add_element_5_5_output_data_control , add_element_4_5_output_data_control , add_element_3_5_output_data_control , add_element_2_5_output_data_control , add_element_1_5_output_data_control};
+        assign EXP_input_K_data_1 = {add_element_8_6_output_data_control , add_element_7_6_output_data_control , add_element_6_6_output_data_control , add_element_5_6_output_data_control , add_element_4_6_output_data_control , add_element_3_6_output_data_control , add_element_2_6_output_data_control , add_element_1_6_output_data_control};
         
+        wire signed[Data_bit-1:0]add_element_1_1_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? sigmoid_output_alpha_0                     : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_1_2_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? sigmoid_output_alpha_1                     : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_1_3_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_0  [(Data_bit-1)-:16]    : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_1_4_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_1  [(Data_bit-1)-:16]    : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_1_5_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_0[(Data_bit-1)-:16]    : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_1_6_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_1[(Data_bit-1)-:16]    : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_1_1_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? sigmoid_output_beta_0                      : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_1_2_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? sigmoid_output_beta_1                      : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_1_3_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_0  [(Data_bit-1)-:16]     : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_1_4_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_1  [(Data_bit-1)-:16]     : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_1_5_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_0[(Data_bit-1)-:16]     : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_1_6_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_1[(Data_bit-1)-:16]     : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
 
-        //----------------------------------PE control---------------------------------
-        //1.contorl 6 mul func_shift_bit , repair bit , input_data , input_alpha , output_data
-        wire [Data_bit-1 : 0]      func_shift_mul_bit   [0:5];
-        wire [3 : 0]               repair_mul_bit       [0:5];
-        wire signed[Data_bit-1 : 0]input_data_mul       [0:5];
-        wire signed[Data_bit-1 : 0]input_alpha_mul      [0:5];
-        reg  signed[Data_bit-1 : 0]sigmoid_input_reg_0  [0:sigmoid_input_delay-1];//keep 3 pipeline
-        reg  signed[Data_bit-1 : 0]sigmoid_input_reg_1  [0:sigmoid_input_delay-1];//keep 3 pipeline
-        reg  signed[Data_bit-1 : 0]sigmoid_keep_bias_0; 
-        reg  signed[Data_bit-1 : 0]sigmoid_keep_bias_1;  
-        integer j;
-
-        assign func_shift_mul_bit[0] = sigmoid_alpha_shift_bit;
-        assign func_shift_mul_bit[1] = exp_alpha_shift_bit;
-        assign func_shift_mul_bit[2] = anchor_max_bit;
-        assign func_shift_mul_bit[3] = sigmoid_alpha_shift_bit;
-        assign func_shift_mul_bit[4] = exp_alpha_shift_bit;
-        assign func_shift_mul_bit[5] = anchor_max_bit;
+        wire signed[Data_bit-1:0]add_element_2_1_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_2_2_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_2_3_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_0  [(2*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_2_4_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_1  [(2*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_2_5_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_0[(2*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_2_6_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_1[(2*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_2_1_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_2_2_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_2_3_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_0  [(2*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_2_4_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_1  [(2*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_2_5_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_0[(2*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_2_6_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_1[(2*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
         
-        assign repair_mul_bit[0]     = data_parameter_reg[3][11-:4];
-        assign repair_mul_bit[1]     = data_parameter_reg[3][11-:4];
-        assign repair_mul_bit[2]     = data_parameter_reg[3][11-:4];
-        assign repair_mul_bit[3]     = data_parameter_reg[3][11-:4];
-        assign repair_mul_bit[4]     = data_parameter_reg[3][11-:4];
-        assign repair_mul_bit[5]     = data_parameter_reg[3][11-:4];
+        wire signed[Data_bit-1:0]add_element_3_1_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_3_2_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_3_3_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_0  [(3*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_3_4_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_1  [(3*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_3_5_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_0[(3*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_3_6_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_1[(3*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_3_1_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_3_2_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_3_3_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_0  [(3*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_3_4_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_1  [(3*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_3_5_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_0[(3*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_3_6_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_1[(3*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
 
-        assign input_data_mul[0]     = sigmoid_input_reg_0[1];
-        assign input_data_mul[1]     = exp_output_alpha[0];
-        assign input_data_mul[2]     = output_data_control_mul[1];
-        assign input_data_mul[3]     = sigmoid_input_reg_1[1];
-        assign input_data_mul[4]     = exp_output_alpha[1];
-        assign input_data_mul[5]     = output_data_control_mul[4];
+        wire signed[Data_bit-1:0]add_element_4_1_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_4_2_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_4_3_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_0  [(4*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_4_4_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_1  [(4*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_4_5_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_0[(4*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_4_6_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_1[(4*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_4_1_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_4_2_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_4_3_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_0  [(4*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_4_4_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_1  [(4*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_4_5_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_0[(4*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_4_6_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_1[(4*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
 
-        assign input_alpha_mul[0]    = sigmoid_output_alpha[0];
-        assign input_alpha_mul[1]    = exp_output_bias[0];
-        assign input_alpha_mul[2]    = 83;
-        assign input_alpha_mul[3]    = sigmoid_output_alpha[1];
-        assign input_alpha_mul[4]    = exp_output_bias[1];
-        assign input_alpha_mul[5]    = 104;
+        wire signed[Data_bit-1:0]add_element_5_1_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_5_2_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_5_3_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_0  [(5*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_5_4_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_1  [(5*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_5_5_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_0[(5*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_5_6_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_1[(5*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_5_1_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_5_2_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_5_3_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_0  [(5*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_5_4_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_1  [(5*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_5_5_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_0[(5*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_5_6_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_1[(5*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
 
-        always@(posedge M_AXI_ACLK)begin
-            if(rst)begin
-                for(j=0;j<3;j=j+1)begin
-                    if(j<1)begin
-                        sigmoid_input_reg_0[j] <= 0;
-                        sigmoid_input_reg_1[j] <= 0;
-                        sigmoid_keep_bias_0    <= 0;
-                        sigmoid_keep_bias_1    <= 0;
-                    end else begin
-                        sigmoid_input_reg_0[j] <= 0;
-                        sigmoid_input_reg_1[j] <= 0;
-                    end
-                end        
+        wire signed[Data_bit-1:0]add_element_6_1_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_6_2_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_6_3_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_0  [(6*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_6_4_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_1  [(6*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_6_5_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_0[(6*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_6_6_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_1[(6*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_6_1_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_6_2_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_6_3_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_0  [(6*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_6_4_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_1  [(6*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_6_5_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_0[(6*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_6_6_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_1[(6*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+
+        wire signed[Data_bit-1:0]add_element_7_1_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_7_2_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_7_3_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_0  [(7*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_7_4_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_1  [(7*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_7_5_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_0[(7*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_7_6_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_1[(7*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_7_1_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_7_2_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_7_3_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_0  [(7*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_7_4_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_1  [(7*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_7_5_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_0[(7*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_7_6_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_1[(7*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+
+        wire signed[Data_bit-1:0]add_element_8_1_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_8_2_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_8_3_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_0  [(8*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_8_4_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_1  [(8*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_8_5_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_0[(8*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_8_6_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_1[(8*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_8_1_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_8_2_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_8_3_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_0  [(8*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_8_4_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_1  [(8*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_8_5_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_0[(8*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_8_6_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_1[(8*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+
+        wire signed[Data_bit-1:0]add_element_9_1_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_9_2_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_9_3_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_0  [(9*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_9_4_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_alpha_1  [(9*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_9_5_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_0[(9*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_9_6_alpha_data_control  = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_alpha_1[(9*Data_bit-1)-:16]  : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_9_1_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_9_2_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? 0                                          : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_9_3_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_0  [(9*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_9_4_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_beta_1  [(9*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_9_5_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_0[(9*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+        wire signed[Data_bit-1:0]add_element_9_6_beta_data_control   = (Current_state_YOLO_PE_FUNC_CONTROL==2'b01) ? output_data_K_beta_1[(9*Data_bit-1)-:16]   : 0/* replace the zero number after finish the box prediction */; //if Current_state_YOLO_PE_FUNC_CONTROL ==2'b01 mean doing box prediction now else if Current_state_YOLO_PE_FUNC_CONTROL==2'b10 mean IOU state
+
+        //--------------------------------add---------------------------------------
+        /*genvar idx;
+        generate;
+            for(idx=0;idx=9*6;idx=idx+1)begin
+                process_add_element add_element
+            end
+        endgenerate
+        */
+        process_add_element add_element_1_1(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_1_1_alpha_data_control) , .input_data_beta(add_element_1_1_beta_data_control) , .output_data(add_element_1_1_output_data_control));
+        process_add_element add_element_1_2(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_1_2_alpha_data_control) , .input_data_beta(add_element_1_2_beta_data_control) , .output_data(add_element_1_2_output_data_control));
+        process_add_element add_element_1_3(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_1_3_alpha_data_control) , .input_data_beta(add_element_1_3_beta_data_control) , .output_data(add_element_1_3_output_data_control));
+        process_add_element add_element_1_4(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_1_4_alpha_data_control) , .input_data_beta(add_element_1_4_beta_data_control) , .output_data(add_element_1_4_output_data_control));
+        process_add_element add_element_1_5(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_1_5_alpha_data_control) , .input_data_beta(add_element_1_5_beta_data_control) , .output_data(add_element_1_5_output_data_control));
+        process_add_element add_element_1_6(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_1_6_alpha_data_control) , .input_data_beta(add_element_1_6_beta_data_control) , .output_data(add_element_1_6_output_data_control));
+        process_add_element add_element_2_1(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_2_1_alpha_data_control) , .input_data_beta(add_element_2_1_beta_data_control) , .output_data(add_element_2_1_output_data_control));
+        process_add_element add_element_2_2(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_2_2_alpha_data_control) , .input_data_beta(add_element_2_2_beta_data_control) , .output_data(add_element_2_2_output_data_control));
+        process_add_element add_element_2_3(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_2_3_alpha_data_control) , .input_data_beta(add_element_2_3_beta_data_control) , .output_data(add_element_2_3_output_data_control));
+        process_add_element add_element_2_4(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_2_4_alpha_data_control) , .input_data_beta(add_element_2_4_beta_data_control) , .output_data(add_element_2_4_output_data_control));
+        process_add_element add_element_2_5(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_2_5_alpha_data_control) , .input_data_beta(add_element_2_5_beta_data_control) , .output_data(add_element_2_5_output_data_control));
+        process_add_element add_element_2_6(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_2_6_alpha_data_control) , .input_data_beta(add_element_2_6_beta_data_control) , .output_data(add_element_2_6_output_data_control));
+        process_add_element add_element_3_1(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_3_1_alpha_data_control) , .input_data_beta(add_element_3_1_beta_data_control) , .output_data(add_element_3_1_output_data_control));
+        process_add_element add_element_3_2(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_3_2_alpha_data_control) , .input_data_beta(add_element_3_2_beta_data_control) , .output_data(add_element_3_2_output_data_control));
+        process_add_element add_element_3_3(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_3_3_alpha_data_control) , .input_data_beta(add_element_3_3_beta_data_control) , .output_data(add_element_3_3_output_data_control));
+        process_add_element add_element_3_4(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_3_4_alpha_data_control) , .input_data_beta(add_element_3_4_beta_data_control) , .output_data(add_element_3_4_output_data_control));
+        process_add_element add_element_3_5(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_3_5_alpha_data_control) , .input_data_beta(add_element_3_5_beta_data_control) , .output_data(add_element_3_5_output_data_control));
+        process_add_element add_element_3_6(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_3_6_alpha_data_control) , .input_data_beta(add_element_3_6_beta_data_control) , .output_data(add_element_3_6_output_data_control));
+        process_add_element add_element_4_1(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_4_1_alpha_data_control) , .input_data_beta(add_element_4_1_beta_data_control) , .output_data(add_element_4_1_output_data_control));
+        process_add_element add_element_4_2(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_4_2_alpha_data_control) , .input_data_beta(add_element_4_2_beta_data_control) , .output_data(add_element_4_2_output_data_control));
+        process_add_element add_element_4_3(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_4_3_alpha_data_control) , .input_data_beta(add_element_4_3_beta_data_control) , .output_data(add_element_4_3_output_data_control));
+        process_add_element add_element_4_4(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_4_4_alpha_data_control) , .input_data_beta(add_element_4_4_beta_data_control) , .output_data(add_element_4_4_output_data_control));
+        process_add_element add_element_4_5(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_4_5_alpha_data_control) , .input_data_beta(add_element_4_5_beta_data_control) , .output_data(add_element_4_5_output_data_control));
+        process_add_element add_element_4_6(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_4_6_alpha_data_control) , .input_data_beta(add_element_4_6_beta_data_control) , .output_data(add_element_4_6_output_data_control));
+        process_add_element add_element_5_1(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_5_1_alpha_data_control) , .input_data_beta(add_element_5_1_beta_data_control) , .output_data(add_element_5_1_output_data_control));
+        process_add_element add_element_5_2(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_5_2_alpha_data_control) , .input_data_beta(add_element_5_2_beta_data_control) , .output_data(add_element_5_2_output_data_control));
+        process_add_element add_element_5_3(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_5_3_alpha_data_control) , .input_data_beta(add_element_5_3_beta_data_control) , .output_data(add_element_5_3_output_data_control));
+        process_add_element add_element_5_4(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_5_4_alpha_data_control) , .input_data_beta(add_element_5_4_beta_data_control) , .output_data(add_element_5_4_output_data_control));
+        process_add_element add_element_5_5(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_5_5_alpha_data_control) , .input_data_beta(add_element_5_5_beta_data_control) , .output_data(add_element_5_5_output_data_control));
+        process_add_element add_element_5_6(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_5_6_alpha_data_control) , .input_data_beta(add_element_5_6_beta_data_control) , .output_data(add_element_5_6_output_data_control));
+        process_add_element add_element_6_1(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_6_1_alpha_data_control) , .input_data_beta(add_element_6_1_beta_data_control) , .output_data(add_element_6_1_output_data_control));
+        process_add_element add_element_6_2(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_6_2_alpha_data_control) , .input_data_beta(add_element_6_2_beta_data_control) , .output_data(add_element_6_2_output_data_control));
+        process_add_element add_element_6_3(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_6_3_alpha_data_control) , .input_data_beta(add_element_6_3_beta_data_control) , .output_data(add_element_6_3_output_data_control));
+        process_add_element add_element_6_4(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_6_4_alpha_data_control) , .input_data_beta(add_element_6_4_beta_data_control) , .output_data(add_element_6_4_output_data_control));
+        process_add_element add_element_6_5(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_6_5_alpha_data_control) , .input_data_beta(add_element_6_5_beta_data_control) , .output_data(add_element_6_5_output_data_control));
+        process_add_element add_element_6_6(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_6_6_alpha_data_control) , .input_data_beta(add_element_6_6_beta_data_control) , .output_data(add_element_6_6_output_data_control));
+        process_add_element add_element_7_1(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_7_1_alpha_data_control) , .input_data_beta(add_element_7_1_beta_data_control) , .output_data(add_element_7_1_output_data_control));
+        process_add_element add_element_7_2(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_7_2_alpha_data_control) , .input_data_beta(add_element_7_2_beta_data_control) , .output_data(add_element_7_2_output_data_control));
+        process_add_element add_element_7_3(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_7_3_alpha_data_control) , .input_data_beta(add_element_7_3_beta_data_control) , .output_data(add_element_7_3_output_data_control));
+        process_add_element add_element_7_4(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_7_4_alpha_data_control) , .input_data_beta(add_element_7_4_beta_data_control) , .output_data(add_element_7_4_output_data_control));
+        process_add_element add_element_7_5(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_7_5_alpha_data_control) , .input_data_beta(add_element_7_5_beta_data_control) , .output_data(add_element_7_5_output_data_control));
+        process_add_element add_element_7_6(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_7_6_alpha_data_control) , .input_data_beta(add_element_7_6_beta_data_control) , .output_data(add_element_7_6_output_data_control));
+        process_add_element add_element_8_1(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_8_1_alpha_data_control) , .input_data_beta(add_element_8_1_beta_data_control) , .output_data(add_element_8_1_output_data_control));
+        process_add_element add_element_8_2(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_8_2_alpha_data_control) , .input_data_beta(add_element_8_2_beta_data_control) , .output_data(add_element_8_2_output_data_control));
+        process_add_element add_element_8_3(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_8_3_alpha_data_control) , .input_data_beta(add_element_8_3_beta_data_control) , .output_data(add_element_8_3_output_data_control));
+        process_add_element add_element_8_4(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_8_4_alpha_data_control) , .input_data_beta(add_element_8_4_beta_data_control) , .output_data(add_element_8_4_output_data_control));
+        process_add_element add_element_8_5(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_8_5_alpha_data_control) , .input_data_beta(add_element_8_5_beta_data_control) , .output_data(add_element_8_5_output_data_control));
+        process_add_element add_element_8_6(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_8_6_alpha_data_control) , .input_data_beta(add_element_8_6_beta_data_control) , .output_data(add_element_8_6_output_data_control));
+        process_add_element add_element_9_1(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_9_1_alpha_data_control) , .input_data_beta(add_element_9_1_beta_data_control) , .output_data(add_element_9_1_output_data_control));
+        process_add_element add_element_9_2(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_9_2_alpha_data_control) , .input_data_beta(add_element_9_2_beta_data_control) , .output_data(add_element_9_2_output_data_control));
+        process_add_element add_element_9_3(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_9_3_alpha_data_control) , .input_data_beta(add_element_9_3_beta_data_control) , .output_data(add_element_9_3_output_data_control));
+        process_add_element add_element_9_4(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_9_4_alpha_data_control) , .input_data_beta(add_element_9_4_beta_data_control) , .output_data(add_element_9_4_output_data_control));
+        process_add_element add_element_9_5(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_9_5_alpha_data_control) , .input_data_beta(add_element_9_5_beta_data_control) , .output_data(add_element_9_5_output_data_control));
+        process_add_element add_element_9_6(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .input_data_alpha(add_element_9_6_alpha_data_control) , .input_data_beta(add_element_9_6_beta_data_control) , .output_data(add_element_9_6_output_data_control));
+
+        /*        
+        always@(*)begin
+            if(data_parameter_reg[3][11-:4]==4'b0100)begin
+                input_alpha_mul[2]  = 49;
+                input_alpha_mul[5]  = 50;
+            end else if(data_parameter_reg[3][11-:4]==4'b1000)begin
+                input_alpha_mul[2]  = 83;
+                input_alpha_mul[5]  = 104;
+            end else if(data_parameter_reg[3][11-:4]==4'b1100)begin
+                input_alpha_mul[2]  = 211;
+                input_alpha_mul[5]  = 196;
+            end else if(data_parameter_reg[3][11-:4]==4'b0101)begin
+                input_alpha_mul[2]  = 6;
+                input_alpha_mul[5]  = 8;
+            end else if(data_parameter_reg[3][11-:4]==4'b1001)begin
+                input_alpha_mul[2]  = 14;
+                input_alpha_mul[5]  = 16;
+            end else if(data_parameter_reg[3][11-:4]==4'b1101)begin
+                input_alpha_mul[2]  = 22;
+                input_alpha_mul[5]  = 35;
             end else begin
-                sigmoid_input_reg_0[1] <= sigmoid_input_reg_0[0]; sigmoid_input_reg_0[0] <= data_in_bx0;
-                sigmoid_input_reg_1[1] <= sigmoid_input_reg_1[0]; sigmoid_input_reg_1[0] <= data_in_by0;
-                sigmoid_keep_bias_0    <= sigmoid_output_bias[0];
-                sigmoid_keep_bias_1    <= sigmoid_output_bias[1];
+                input_alpha_mul[2]  = 0;
+                input_alpha_mul[5]  = 0;
             end
         end
-        //----------------------------------6 mul -------------------------------------
-        //1.sigmoid 2 mul 
-        //2.exp     1 mul
-        //3.iou     3 mul
-        process_mul_element mul_element_1(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_mul_bit[0]) , .repair_bit(repair_mul_bit[0]) , .input_data(input_data_mul[0])   , .input_alpha(input_alpha_mul[0])    , .output_data(output_data_control_mul[0]));
-        process_mul_element mul_element_2(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_mul_bit[1]) , .repair_bit(repair_mul_bit[1]) , .input_data(input_data_mul[1])   , .input_alpha(input_alpha_mul[1])    , .output_data(output_data_control_mul[1]));
-        process_mul_element mul_element_3(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_mul_bit[2]) , .repair_bit(repair_mul_bit[2]) , .input_data(input_data_mul[2])   , .input_alpha(input_alpha_mul[2])    , .output_data(output_data_control_mul[2]));
-        process_mul_element mul_element_4(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_mul_bit[3]) , .repair_bit(repair_mul_bit[3]) , .input_data(input_data_mul[3])   , .input_alpha(input_alpha_mul[3])    , .output_data(output_data_control_mul[3]));
-        process_mul_element mul_element_5(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_mul_bit[4]) , .repair_bit(repair_mul_bit[4]) , .input_data(input_data_mul[4])   , .input_alpha(input_alpha_mul[4])    , .output_data(output_data_control_mul[4]));
-        process_mul_element mul_element_6(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_mul_bit[5]) , .repair_bit(repair_mul_bit[5]) , .input_data(input_data_mul[5])   , .input_alpha(input_alpha_mul[5])    , .output_data(output_data_control_mul[5]));
+*/
 
-        //----------------------------------PE control---------------------------------
-        //1.contorl 8 add func_shift_bit , repair bit , input_data , input_bias , output_data
-        wire [Data_bit-1 : 0]   func_shift_add_bit  [0:7];
-        wire [3 : 0]            repair_add_bit      [0:7];
-        wire signed[Data_bit-1 : 0]   input_data_add      [0:5];
-        wire signed[Data_bit-1 : 0]   input_bias_add      [0:5];
 
-        assign func_shift_add_bit[0] = sigmoid_bias_shift_bit;
-        assign func_shift_add_bit[1] = sigmoid_bias_shift_bit;
-        assign func_shift_add_bit[2] = sigmoid_bias_shift_bit;
-        assign func_shift_add_bit[3] = sigmoid_bias_shift_bit;
-        assign func_shift_add_bit[4] = sigmoid_bias_shift_bit;
-        assign func_shift_add_bit[5] = sigmoid_bias_shift_bit;
-        assign func_shift_add_bit[6] = sigmoid_bias_shift_bit;
-        assign func_shift_add_bit[7] = sigmoid_bias_shift_bit;
-
-        assign repair_add_bit[0]     = data_parameter_reg[3][11-:4];
-        assign repair_add_bit[1]     = data_parameter_reg[3][11-:4];
-        assign repair_add_bit[2]     = data_parameter_reg[3][11-:4];
-        assign repair_add_bit[3]     = data_parameter_reg[3][11-:4];
-        assign repair_add_bit[4]     = data_parameter_reg[3][11-:4];
-        assign repair_add_bit[5]     = data_parameter_reg[3][11-:4];
-        assign repair_add_bit[6]     = data_parameter_reg[3][11-:4];
-        assign repair_add_bit[7]     = data_parameter_reg[3][11-:4];
-
-        assign input_data_add[0]     = output_data_control_mul[0];
-        assign input_data_add[1]     = output_data_control_mul[3];
-        assign input_data_add[2]     = output_data_control_add[0];
-        assign input_data_add[3]     = output_data_control_add[1];
-        assign input_data_add[4]     = 0;
-        assign input_data_add[5]     = 0;
-        assign input_data_add[7]     = 0;
-        assign input_data_add[8]     = 0;
-
-        assign input_bias_add[0]     = sigmoid_keep_bias_0;
-        assign input_bias_add[1]     = sigmoid_keep_bias_1;
-        assign input_bias_add[2]     = data_parameter_reg[3][7-:4]<<sigmoid_bias_shift_bit;
-        assign input_bias_add[3]     = data_parameter_reg[3][3-:4]<<sigmoid_bias_shift_bit;
-        assign input_bias_add[4]     = 0;
-        assign input_bias_add[5]     = 0;
-        assign input_bias_add[7]     = 0;
-        assign input_bias_add[8]     = 0;
-        //----------------------------------8 add -------------------------------------
-        //1.sigmoid 2 add
-        //2.iou     6 add
-        process_add_element add_element_1(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_add_bit[0]) , .repair_bit(repair_add_bit[0]) , .input_data(input_data_add[0]) , .input_bias(input_bias_add[0]) , .output_data(output_data_control_add[0]));
-        process_add_element add_element_2(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_add_bit[1]) , .repair_bit(repair_add_bit[1]) , .input_data(input_data_add[1]) , .input_bias(input_bias_add[1]) , .output_data(output_data_control_add[1]));
-        process_add_element add_element_3(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_add_bit[2]) , .repair_bit(repair_add_bit[2]) , .input_data(input_data_add[2]) , .input_bias(input_bias_add[2]) , .output_data(output_data_control_add[2]));
-        process_add_element add_element_4(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_add_bit[3]) , .repair_bit(repair_add_bit[3]) , .input_data(input_data_add[3]) , .input_bias(input_bias_add[3]) , .output_data(output_data_control_add[3]));
-        process_add_element add_element_5(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_add_bit[4]) , .repair_bit(repair_add_bit[4]) , .input_data(input_data_add[4]) , .input_bias(input_bias_add[4]) , .output_data(output_data_control_add[4]));
-        process_add_element add_element_6(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_add_bit[5]) , .repair_bit(repair_add_bit[5]) , .input_data(input_data_add[5]) , .input_bias(input_bias_add[5]) , .output_data(output_data_control_add[5]));
-        process_add_element add_element_7(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_add_bit[6]) , .repair_bit(repair_add_bit[6]) , .input_data(input_data_add[7]) , .input_bias(input_bias_add[7]) , .output_data(output_data_control_add[6]));
-        process_add_element add_element_8(.M_AXI_ACLK(M_AXI_ACLK) , .rst(rst) , .func_shift_bit(func_shift_add_bit[7]) , .repair_bit(repair_add_bit[7]) , .input_data(input_data_add[8]) , .input_bias(input_bias_add[8]) , .output_data(output_data_control_add[7]));
 endmodule
