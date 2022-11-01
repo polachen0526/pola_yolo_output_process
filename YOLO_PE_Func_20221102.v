@@ -847,7 +847,7 @@ module fpga_exp_lookuptable_func_layer_total#(
         output  signed          [9*(data_bit)-1:0]output_data_beta   ,
         output  signed          [9*(data_bit)-1:0]output_data_K_alpha,
         output  signed          [9*(data_bit)-1:0]output_data_K_beta ,
-        output                  [9*2-1:0]         output_add_signal    // EXP FUNC need control K value exp value, and this signal is control add or sub
+        output                  [9*2-1:0]         output_add_signal    // EXP FUNC need control K value exp value, and this signal is control add or sub 2'b10 K_alpha-K_beta,alpha+beta
     );
         wire    signed          [data_bit-1:0] EXP_initial_value_fixed = EXP_initial_value>>>repair_bit;
 
@@ -996,7 +996,7 @@ module fpga_exp_lookuptable_func_layer_0#(
                 output_data_beta    = 0;
                 output_data_K_alpha = ORG_input_data;
                 output_data_K_beta  = cond_positive_K_value_reg;
-                output_add_signal   = 2'b00;
+                output_add_signal   = 2'b10;
             end else if((ORG_input_data < cond_negative_K_value_reg))begin
                 output_data_alpha   = EXP_initial_value>>>2;
                 output_data_beta    = 0;
@@ -1048,7 +1048,7 @@ module fpga_exp_lookuptable_func_layer_1#(
                 output_data_beta    = 0;
                 output_data_K_alpha = ORG_input_data;
                 output_data_K_beta  = cond_positive_K_value_reg;
-                output_add_signal   = 2'b00;
+                output_add_signal   = 2'b10;
             end else if((ORG_input_data < cond_negative_K_value_reg))begin
                 output_data_alpha   = EXP_initial_value>>>1;
                 output_data_beta    = 0;
@@ -1100,7 +1100,7 @@ module fpga_exp_lookuptable_func_layer_2#(
                 output_data_beta    = EXP_initial_value>>>1;
                 output_data_K_alpha = ORG_input_data;
                 output_data_K_beta  = cond_positive_K_value_reg;
-                output_add_signal   = 2'b00;
+                output_add_signal   = 2'b10;
             end else if((ORG_input_data < cond_negative_K_value_reg))begin
                 output_data_alpha   = EXP_initial_value;
                 output_data_beta    = EXP_initial_value>>>2;
@@ -1152,7 +1152,7 @@ module fpga_exp_lookuptable_func_layer_3#(
                 output_data_beta    = EXP_initial_value>>>2;
                 output_data_K_alpha = ORG_input_data;
                 output_data_K_beta  = cond_positive_K_value_reg;
-                output_add_signal   = 2'b00;
+                output_add_signal   = 2'b10;
             end else if((ORG_input_data < cond_negative_K_value_reg))begin
                 output_data_alpha   = EXP_initial_value;
                 output_data_beta    = EXP_initial_value>>>3;
@@ -1204,7 +1204,7 @@ module fpga_exp_lookuptable_func_layer_4#(
                 output_data_beta    = EXP_initial_value>>>3;
                 output_data_K_alpha = ORG_input_data;
                 output_data_K_beta  = cond_positive_K_value_reg;
-                output_add_signal   = 2'b00;
+                output_add_signal   = 2'b10;
             end else if((ORG_input_data < cond_negative_K_value_reg))begin
                 output_data_alpha   = EXP_initial_value;
                 output_data_beta    = EXP_initial_value>>>4;
@@ -1256,7 +1256,7 @@ module fpga_exp_lookuptable_func_layer_5#(
                 output_data_beta    = EXP_initial_value>>>4;
                 output_data_K_alpha = ORG_input_data;
                 output_data_K_beta  = cond_positive_K_value_reg;
-                output_add_signal   = 2'b00;
+                output_add_signal   = 2'b10;
             end else if((ORG_input_data < cond_negative_K_value_reg))begin
                 output_data_alpha   = EXP_initial_value;
                 output_data_beta    = EXP_initial_value>>>5;
@@ -1308,7 +1308,7 @@ module fpga_exp_lookuptable_func_layer_6#(
                 output_data_beta    = EXP_initial_value>>>5;
                 output_data_K_alpha = ORG_input_data;
                 output_data_K_beta  = cond_positive_K_value_reg;
-                output_add_signal   = 2'b00;
+                output_add_signal   = 2'b10;
             end else if((ORG_input_data < cond_negative_K_value_reg))begin
                 output_data_alpha   = EXP_initial_value;
                 output_data_beta    = EXP_initial_value>>>6;
@@ -1360,7 +1360,7 @@ module fpga_exp_lookuptable_func_layer_7#(
                 output_data_beta    = EXP_initial_value>>>6;
                 output_data_K_alpha = ORG_input_data;
                 output_data_K_beta  = cond_positive_K_value_reg;
-                output_add_signal   = 2'b00;
+                output_add_signal   = 2'b10;
             end else if((ORG_input_data < cond_negative_K_value_reg))begin
                 output_data_alpha   = EXP_initial_value;
                 output_data_beta    = EXP_initial_value>>>7;
@@ -1412,7 +1412,7 @@ module fpga_exp_lookuptable_func_layer_8#(
                 output_data_beta    = EXP_initial_value>>>7;
                 output_data_K_alpha = ORG_input_data;
                 output_data_K_beta  = cond_positive_K_value_reg;
-                output_add_signal   = 2'b00;
+                output_add_signal   = 2'b10;
             end else if((ORG_input_data < cond_negative_K_value_reg))begin
                 output_data_alpha   = EXP_initial_value;
                 output_data_beta    = EXP_initial_value>>>8;
