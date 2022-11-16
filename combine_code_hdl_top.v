@@ -88,7 +88,7 @@
         input                                    M_AXI_RVALID,  // when valid is High , read data is effective
         output wire                              M_AXI_RREADY,   // ready to start reading
         output                                   IRQ,
-        output                                   s_axi_start,
+        output                                   s_axi_start_output,
 		// User ports ends
 		// Do not modify the ports beyond this line
 
@@ -145,7 +145,7 @@
 	);
 
     wire s_axi_start_sel;
-    //wire s_axi_start;
+    wire s_axi_start;
     wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_0;
     wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_1;
     wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_2;
@@ -210,17 +210,17 @@
     //----------------------------------------------------------------------------------
     //  (AR) Channel control two axi
     //----------------------------------------------------------------------------------
-    wire   [C_M_AXI_ID_WIDTH-1 : 0]                 M_AXI_ARID_CNN      :   M_AXI_ARID_yolo_output_process      ;   
-    wire   [C_M_AXI_ADDR_WIDTH-1 : 0]               M_AXI_ARADDR_CNN    :   M_AXI_ARADDR_yolo_output_process    ; 
-    wire   [7 : 0]                                  M_AXI_ARLEN_CNN     :   M_AXI_ARLEN_yolo_output_process     ;
-    wire   [2 : 0]                                  M_AXI_ARSIZE_CNN    :   M_AXI_ARSIZE_yolo_output_process    ; 
-    wire   [1 : 0]                                  M_AXI_ARBURST_CNN   :   M_AXI_ARBURST_yolo_output_process   ;
-    wire                                            M_AXI_ARLOCK_CNN    :   M_AXI_ARLOCK_yolo_output_process    ; 
-    wire   [3 : 0]                                  M_AXI_ARCACHE_CNN   :   M_AXI_ARCACHE_yolo_output_process   ;
-    wire   [2 : 0]                                  M_AXI_ARPROT_CNN    :   M_AXI_ARPROT_yolo_output_process    ;
-    wire   [3 : 0]                                  M_AXI_ARQOS_CNN     :   M_AXI_ARQOS_yolo_output_process     ;  
-    wire   [C_M_AXI_ARUSER_WIDTH-1 : 0]             M_AXI_ARUSER_CNN    :   M_AXI_ARUSER_yolo_output_process    ;
-    wire                                            M_AXI_ARVALID_CNN   :   M_AXI_ARVALID_yolo_output_process   ;
+    wire   [C_M_AXI_ID_WIDTH-1 : 0]                 M_AXI_ARID_CNN      ,   M_AXI_ARID_yolo_output_process      ;   
+    wire   [C_M_AXI_ADDR_WIDTH-1 : 0]               M_AXI_ARADDR_CNN    ,   M_AXI_ARADDR_yolo_output_process    ; 
+    wire   [7 : 0]                                  M_AXI_ARLEN_CNN     ,   M_AXI_ARLEN_yolo_output_process     ;
+    wire   [2 : 0]                                  M_AXI_ARSIZE_CNN    ,   M_AXI_ARSIZE_yolo_output_process    ; 
+    wire   [1 : 0]                                  M_AXI_ARBURST_CNN   ,   M_AXI_ARBURST_yolo_output_process   ;
+    wire                                            M_AXI_ARLOCK_CNN    ,   M_AXI_ARLOCK_yolo_output_process    ; 
+    wire   [3 : 0]                                  M_AXI_ARCACHE_CNN   ,   M_AXI_ARCACHE_yolo_output_process   ;
+    wire   [2 : 0]                                  M_AXI_ARPROT_CNN    ,   M_AXI_ARPROT_yolo_output_process    ;
+    wire   [3 : 0]                                  M_AXI_ARQOS_CNN     ,   M_AXI_ARQOS_yolo_output_process     ;  
+    wire   [C_M_AXI_ARUSER_WIDTH-1 : 0]             M_AXI_ARUSER_CNN    ,   M_AXI_ARUSER_yolo_output_process    ;
+    wire                                            M_AXI_ARVALID_CNN   ,   M_AXI_ARVALID_yolo_output_process   ;
     assign M_AXI_ARID       =   (s_axi_start_sel) ? M_AXI_ARID_CNN      :   M_AXI_ARID_yolo_output_process      ;   
     assign M_AXI_ARADDR     =   (s_axi_start_sel) ? M_AXI_ARADDR_CNN    :   M_AXI_ARADDR_yolo_output_process    ; 
     assign M_AXI_ARLEN      =   (s_axi_start_sel) ? M_AXI_ARLEN_CNN     :   M_AXI_ARLEN_yolo_output_process     ;
@@ -244,10 +244,8 @@
     //----------------------------------------------------------------------------------
     wire                                            IRQ_CNN             ,   IRQ_yolo_output_process             ;
     wire                                            s_axi_start_CNN     ,   s_axi_start_yolo_output_process     ;
-    wire                                            s_axi_start_CNN;
-    wire                                            s_axi_start_yolo_output_process;
-    assign IRQ              =   (s_axi_start_sel) ? IRQ_CNN             :   IRQ_yolo_output_process             ;
-    assign s_axi_start      =   (s_axi_start_sel) ? s_axi_start_CNN     :   s_axi_start_yolo_output_process     ;
+    assign IRQ                  =   (s_axi_start_sel) ? IRQ_CNN             :   IRQ_yolo_output_process             ;
+    assign s_axi_start_output   =   (s_axi_start_sel) ? s_axi_start_CNN     :   s_axi_start_yolo_output_process     ;
     assign s_axi_start_CNN                  = s_axi_start==0 ? 0 : s_axi_start_sel==0 && s_axi_start==1 ? 1 : s_axi_start_sel==1 && s_axi_start==1 ? 0 : 0;
     assign s_axi_start_yolo_output_process  = s_axi_start==0 ? 0 : s_axi_start_sel==0 && s_axi_start==1 ? 0 : s_axi_start_sel==1 && s_axi_start==1 ? 1 : 0;
     assign DEBUF_Layer_selc = layer_selc[5:0];
@@ -302,7 +300,7 @@
         CNN u_CNN (
         //S_AXI-Lite
         .S_AXI_ACLK             (s00_axi_aclk),
-        .IRQ                    (IRQ),
+        .IRQ                    (IRQ_CNN),
 
         .s_axi_start(s_axi_start_CNN),
         .s_axi_inst_0(s_axi_inst_0),
@@ -423,7 +421,7 @@
     YOLO_output_spilt_process u_YOLO_output_spilt_process (
         //S_AXI-Lite
         .S_AXI_ACLK             (s00_axi_aclk),
-        .IRQ                    (IRQ),
+        .IRQ                    (IRQ_yolo_output_process),
 
         .s_axi_start(s_axi_start_yolo_output_process),
         .s_axi_inst_0(s_axi_inst_0),
