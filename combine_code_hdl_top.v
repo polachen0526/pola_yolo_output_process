@@ -87,8 +87,6 @@
         input  [C_M_AXI_RUSER_WIDTH-1 : 0]       M_AXI_RUSER,
         input                                    M_AXI_RVALID,  // when valid is High , read data is effective
         output wire                              M_AXI_RREADY,   // ready to start reading
-        output                                   IRQ,
-        output                                   s_axi_start_output,
 		// User ports ends
 		// Do not modify the ports beyond this line
 
@@ -116,14 +114,40 @@
 		output wire  s00_axi_rvalid,
 		input wire  s00_axi_rready,
 
-
-        output   [31:0]                     HARDWARE_VERSION,
-
-
-    output   [1:0]                          DEBUG_INPUT_state,
-                                            DEBUG_INPUT_start_valid_buffer,
-    output   [2:0]                          DEBUG_INPUT_state_input_ctrl,
-    output                                  DEBUG_Master_Output_Finish,
+    //-------------------ILA-----------------------------
+    output                                  DEBUG_obuf_rst,
+    output                                  IRQ,
+    output                                  s_axi_start_output,
+    output                                  s_axi_start_sel , s_axi_start,
+    output                                  s_axi_start_CNN,
+    output                                  s_axi_start_yolo_output_process,
+    output                                  IRQ_CNN,
+    output                                  IRQ_yolo_output_process,
+    output[2:0]                             output_process_Current_state,
+    output[2:0]                             output_process_Next_state,
+    output[1:0]                             output_process_CREAD_state,
+    output[1:0]                             output_process_NREAD_state,
+    output[1:0]                             output_process_CWRITE_state,
+    output[1:0]                             output_process_NWRITE_state,
+    output PROCESS_point_state_finish,
+    output PROCESS_iou_state_finish  ,
+    output PROCESS_write_state_finish,
+    output INST_state_finish,
+    output rst,
+    output [3:0]HW_VERSION,
+    output [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_0,
+    output [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_1,
+    output [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_2,
+    output [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_3,
+    output [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_4,
+    output already_finish_lock
+	);
+    assign HW_VERSION = 6;
+	wire    [31:0]                          HARDWARE_VERSION;
+    wire    [1:0]                           DEBUG_INPUT_state,
+                                            DEBUG_INPUT_start_valid_buffer;
+    wire    [2:0]                           DEBUG_INPUT_state_input_ctrl;
+    wire                                    DEBUG_Master_Output_Finish,
                                             DEBUG_Compute_Finish,
                                             DEBUG_For_State_Finish,
                                             DEBUG_Pad_Start_OBUF_FINISH,
@@ -133,24 +157,23 @@
                                             DEBUG_ready_A,
                                             DEBUG_ready_B,
                                             DEBUG_start_A,
-                                            DEBUG_start_B,
-    output       [1:0]                      DEBUG_obuf_state,
+                                            DEBUG_start_B;
+    wire    [1:0]                           DEBUG_obuf_state,
                                             DEBUG_obuf_pool_s,
-                                            DEBUG_obuf_finish_state,
-    output                                  DEBUG_obuf_rst,
-    output [5:0]                            DEBUF_Layer_selc,
-    output [2:0]                            DEBUG_Layer_type,
-	output [31:0]                           DEBUG_cycle_data
+                                            DEBUG_obuf_finish_state;
+    //wire                                    DEBUG_obuf_rst;
+    wire    [5:0]                           DEBUF_Layer_selc;
+    wire    [2:0]                           DEBUG_Layer_type;
+	wire    [31:0]                          DEBUG_cycle_data;
 
-	);
 
-    wire s_axi_start_sel;
-    wire s_axi_start;
-    wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_0;
-    wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_1;
-    wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_2;
-    wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_3;
-    wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_4;
+    //wire s_axi_start_sel;
+    //wire s_axi_start;
+    //wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_0;
+    //wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_1;
+    //wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_2;
+    //wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_3;
+    //wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_inst_4;
     wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_Rerror_addr;
     wire [C_S00_AXI_DATA_WIDTH-1 : 0] s_axi_Werror_addr;
     wire s_axi_Rerror;
@@ -175,17 +198,17 @@
     wire   [3 : 0]                                  M_AXI_AWQOS_CNN     ,   M_AXI_AWQOS_yolo_output_process     ;
     wire   [C_M_AXI_AWUSER_WIDTH-1 : 0]             M_AXI_AWUSER_CNN    ,   M_AXI_AWUSER_yolo_output_process    ;
     wire                                            M_AXI_AWVALID_CNN   ,   M_AXI_AWVALID_yolo_output_process   ;
-    assign M_AXI_AWID       =   (s_axi_start_sel) ? M_AXI_AWID_CNN      :   M_AXI_AWID_yolo_output_process      ;
-    assign M_AXI_AWADDR     =   (s_axi_start_sel) ? M_AXI_AWADDR_CNN    :   M_AXI_AWADDR_yolo_output_process    ;
-    assign M_AXI_AWLEN      =   (s_axi_start_sel) ? M_AXI_AWLEN_CNN     :   M_AXI_AWLEN_yolo_output_process     ; 
-    assign M_AXI_AWSIZE     =   (s_axi_start_sel) ? M_AXI_AWSIZE_CNN    :   M_AXI_AWSIZE_yolo_output_process    ; 
-    assign M_AXI_AWBURST    =   (s_axi_start_sel) ? M_AXI_AWBURST_CNN   :   M_AXI_AWBURST_yolo_output_process   ; 
-    assign M_AXI_AWLOCK     =   (s_axi_start_sel) ? M_AXI_AWLOCK_CNN    :   M_AXI_AWLOCK_yolo_output_process    ; 
-    assign M_AXI_AWCACHE    =   (s_axi_start_sel) ? M_AXI_AWCACHE_CNN   :   M_AXI_AWCACHE_yolo_output_process   ; 
-    assign M_AXI_AWPROT     =   (s_axi_start_sel) ? M_AXI_AWPROT_CNN    :   M_AXI_AWPROT_yolo_output_process    ; 
-    assign M_AXI_AWQOS      =   (s_axi_start_sel) ? M_AXI_AWQOS_CNN     :   M_AXI_AWQOS_yolo_output_process     ; 
-    assign M_AXI_AWUSER     =   (s_axi_start_sel) ? M_AXI_AWUSER_CNN    :   M_AXI_AWUSER_yolo_output_process    ; 
-    assign M_AXI_AWVALID    =   (s_axi_start_sel) ? M_AXI_AWVALID_CNN   :   M_AXI_AWVALID_yolo_output_process   ; 
+    assign M_AXI_AWID       =   (s_axi_start_sel==0) ? M_AXI_AWID_CNN      :   M_AXI_AWID_yolo_output_process      ;
+    assign M_AXI_AWADDR     =   (s_axi_start_sel==0) ? M_AXI_AWADDR_CNN    :   M_AXI_AWADDR_yolo_output_process    ;
+    assign M_AXI_AWLEN      =   (s_axi_start_sel==0) ? M_AXI_AWLEN_CNN     :   M_AXI_AWLEN_yolo_output_process     ; 
+    assign M_AXI_AWSIZE     =   (s_axi_start_sel==0) ? M_AXI_AWSIZE_CNN    :   M_AXI_AWSIZE_yolo_output_process    ; 
+    assign M_AXI_AWBURST    =   (s_axi_start_sel==0) ? M_AXI_AWBURST_CNN   :   M_AXI_AWBURST_yolo_output_process   ; 
+    assign M_AXI_AWLOCK     =   (s_axi_start_sel==0) ? M_AXI_AWLOCK_CNN    :   M_AXI_AWLOCK_yolo_output_process    ; 
+    assign M_AXI_AWCACHE    =   (s_axi_start_sel==0) ? M_AXI_AWCACHE_CNN   :   M_AXI_AWCACHE_yolo_output_process   ; 
+    assign M_AXI_AWPROT     =   (s_axi_start_sel==0) ? M_AXI_AWPROT_CNN    :   M_AXI_AWPROT_yolo_output_process    ; 
+    assign M_AXI_AWQOS      =   (s_axi_start_sel==0) ? M_AXI_AWQOS_CNN     :   M_AXI_AWQOS_yolo_output_process     ; 
+    assign M_AXI_AWUSER     =   (s_axi_start_sel==0) ? M_AXI_AWUSER_CNN    :   M_AXI_AWUSER_yolo_output_process    ; 
+    assign M_AXI_AWVALID    =   (s_axi_start_sel==0) ? M_AXI_AWVALID_CNN   :   M_AXI_AWVALID_yolo_output_process   ; 
 
     //----------------------------------------------------------------------------------
     //  (W) Channel control two axi
@@ -195,17 +218,17 @@
     wire                                            M_AXI_WLAST_CNN     ,   M_AXI_WLAST_yolo_output_process     ;
     wire   [C_M_AXI_WUSER_WIDTH-1 : 0]              M_AXI_WUSER_CNN     ,   M_AXI_WUSER_yolo_output_process     ;
     wire                                            M_AXI_WVALID_CNN    ,   M_AXI_WVALID_yolo_output_process    ;
-    assign M_AXI_WDATA      =   (s_axi_start_sel) ? M_AXI_WDATA_CNN     :   M_AXI_WDATA_yolo_output_process     ;
-    assign M_AXI_WSTRB      =   (s_axi_start_sel) ? M_AXI_WSTRB_CNN     :   M_AXI_WSTRB_yolo_output_process     ;
-    assign M_AXI_WLAST      =   (s_axi_start_sel) ? M_AXI_WLAST_CNN     :   M_AXI_WLAST_yolo_output_process     ;
-    assign M_AXI_WUSER      =   (s_axi_start_sel) ? M_AXI_WUSER_CNN     :   M_AXI_WUSER_yolo_output_process     ;
-    assign M_AXI_WVALID     =   (s_axi_start_sel) ? M_AXI_WVALID_CNN    :   M_AXI_WVALID_yolo_output_process    ;
+    assign M_AXI_WDATA      =   (s_axi_start_sel==0) ? M_AXI_WDATA_CNN     :   M_AXI_WDATA_yolo_output_process     ;
+    assign M_AXI_WSTRB      =   (s_axi_start_sel==0) ? M_AXI_WSTRB_CNN     :   M_AXI_WSTRB_yolo_output_process     ;
+    assign M_AXI_WLAST      =   (s_axi_start_sel==0) ? M_AXI_WLAST_CNN     :   M_AXI_WLAST_yolo_output_process     ;
+    assign M_AXI_WUSER      =   (s_axi_start_sel==0) ? M_AXI_WUSER_CNN     :   M_AXI_WUSER_yolo_output_process     ;
+    assign M_AXI_WVALID     =   (s_axi_start_sel==0) ? M_AXI_WVALID_CNN    :   M_AXI_WVALID_yolo_output_process    ;
 
     //----------------------------------------------------------------------------------
     //  (B) Channel control two axi
     //----------------------------------------------------------------------------------
     wire                                            M_AXI_BREADY_CNN    ,   M_AXI_BREADY_yolo_output_process    ;
-    assign M_AXI_BREADY     =   (s_axi_start_sel) ? M_AXI_BREADY_CNN    :   M_AXI_BREADY_yolo_output_process    ;
+    assign M_AXI_BREADY     =   (s_axi_start_sel==0) ? M_AXI_BREADY_CNN    :   M_AXI_BREADY_yolo_output_process    ;
 
     //----------------------------------------------------------------------------------
     //  (AR) Channel control two axi
@@ -221,31 +244,31 @@
     wire   [3 : 0]                                  M_AXI_ARQOS_CNN     ,   M_AXI_ARQOS_yolo_output_process     ;  
     wire   [C_M_AXI_ARUSER_WIDTH-1 : 0]             M_AXI_ARUSER_CNN    ,   M_AXI_ARUSER_yolo_output_process    ;
     wire                                            M_AXI_ARVALID_CNN   ,   M_AXI_ARVALID_yolo_output_process   ;
-    assign M_AXI_ARID       =   (s_axi_start_sel) ? M_AXI_ARID_CNN      :   M_AXI_ARID_yolo_output_process      ;   
-    assign M_AXI_ARADDR     =   (s_axi_start_sel) ? M_AXI_ARADDR_CNN    :   M_AXI_ARADDR_yolo_output_process    ; 
-    assign M_AXI_ARLEN      =   (s_axi_start_sel) ? M_AXI_ARLEN_CNN     :   M_AXI_ARLEN_yolo_output_process     ;
-    assign M_AXI_ARSIZE     =   (s_axi_start_sel) ? M_AXI_ARSIZE_CNN    :   M_AXI_ARSIZE_yolo_output_process    ; 
-    assign M_AXI_ARBURST    =   (s_axi_start_sel) ? M_AXI_ARBURST_CNN   :   M_AXI_ARBURST_yolo_output_process   ;
-    assign M_AXI_ARLOCK     =   (s_axi_start_sel) ? M_AXI_ARLOCK_CNN    :   M_AXI_ARLOCK_yolo_output_process    ; 
-    assign M_AXI_ARCACHE    =   (s_axi_start_sel) ? M_AXI_ARCACHE_CNN   :   M_AXI_ARCACHE_yolo_output_process   ;
-    assign M_AXI_ARPROT     =   (s_axi_start_sel) ? M_AXI_ARPROT_CNN    :   M_AXI_ARPROT_yolo_output_process    ;
-    assign M_AXI_ARQOS      =   (s_axi_start_sel) ? M_AXI_ARQOS_CNN     :   M_AXI_ARQOS_yolo_output_process     ;  
-    assign M_AXI_ARUSER     =   (s_axi_start_sel) ? M_AXI_ARUSER_CNN    :   M_AXI_ARUSER_yolo_output_process    ;
-    assign M_AXI_ARVALID    =   (s_axi_start_sel) ? M_AXI_ARVALID_CNN   :   M_AXI_ARVALID_yolo_output_process   ;
+    assign M_AXI_ARID       =   (s_axi_start_sel==0) ? M_AXI_ARID_CNN      :   M_AXI_ARID_yolo_output_process      ;   
+    assign M_AXI_ARADDR     =   (s_axi_start_sel==0) ? M_AXI_ARADDR_CNN    :   M_AXI_ARADDR_yolo_output_process    ; 
+    assign M_AXI_ARLEN      =   (s_axi_start_sel==0) ? M_AXI_ARLEN_CNN     :   M_AXI_ARLEN_yolo_output_process     ;
+    assign M_AXI_ARSIZE     =   (s_axi_start_sel==0) ? M_AXI_ARSIZE_CNN    :   M_AXI_ARSIZE_yolo_output_process    ; 
+    assign M_AXI_ARBURST    =   (s_axi_start_sel==0) ? M_AXI_ARBURST_CNN   :   M_AXI_ARBURST_yolo_output_process   ;
+    assign M_AXI_ARLOCK     =   (s_axi_start_sel==0) ? M_AXI_ARLOCK_CNN    :   M_AXI_ARLOCK_yolo_output_process    ; 
+    assign M_AXI_ARCACHE    =   (s_axi_start_sel==0) ? M_AXI_ARCACHE_CNN   :   M_AXI_ARCACHE_yolo_output_process   ;
+    assign M_AXI_ARPROT     =   (s_axi_start_sel==0) ? M_AXI_ARPROT_CNN    :   M_AXI_ARPROT_yolo_output_process    ;
+    assign M_AXI_ARQOS      =   (s_axi_start_sel==0) ? M_AXI_ARQOS_CNN     :   M_AXI_ARQOS_yolo_output_process     ;  
+    assign M_AXI_ARUSER     =   (s_axi_start_sel==0) ? M_AXI_ARUSER_CNN    :   M_AXI_ARUSER_yolo_output_process    ;
+    assign M_AXI_ARVALID    =   (s_axi_start_sel==0) ? M_AXI_ARVALID_CNN   :   M_AXI_ARVALID_yolo_output_process   ;
 
     //----------------------------------------------------------------------------------
     //  (R) Channel control two axi
     //----------------------------------------------------------------------------------
     wire                                            M_AXI_RREADY_CNN    ,   M_AXI_RREADY_yolo_output_process    ;
-    assign M_AXI_RREADY     =   (s_axi_start_sel) ? M_AXI_RREADY_CNN    :   M_AXI_RREADY_yolo_output_process    ;
+    assign M_AXI_RREADY     =   (s_axi_start_sel==0) ? M_AXI_RREADY_CNN    :   M_AXI_RREADY_yolo_output_process    ;
 
     //----------------------------------------------------------------------------------
     //  IRQ and START
     //----------------------------------------------------------------------------------
-    wire                                            IRQ_CNN             ,   IRQ_yolo_output_process             ;
-    wire                                            s_axi_start_CNN     ,   s_axi_start_yolo_output_process     ;
-    assign IRQ                  =   (s_axi_start_sel) ? IRQ_CNN             :   IRQ_yolo_output_process             ;
-    assign s_axi_start_output   =   (s_axi_start_sel) ? s_axi_start_CNN     :   s_axi_start_yolo_output_process     ;
+    //wire                                                               IRQ_CNN             ,   IRQ_yolo_output_process             ;
+    //wire                                                               s_axi_start_CNN     ,   s_axi_start_yolo_output_process     ;
+    assign IRQ                              =   (s_axi_start_sel==0) ? IRQ_CNN             :   IRQ_yolo_output_process             ;
+    assign s_axi_start_output               =   (s_axi_start_sel==0) ? s_axi_start_CNN     :   s_axi_start_yolo_output_process     ;
     assign s_axi_start_CNN                  = s_axi_start==0 ? 0 : s_axi_start_sel==0 && s_axi_start==1 ? 1 : s_axi_start_sel==1 && s_axi_start==1 ? 0 : 0;
     assign s_axi_start_yolo_output_process  = s_axi_start==0 ? 0 : s_axi_start_sel==0 && s_axi_start==1 ? 0 : s_axi_start_sel==1 && s_axi_start==1 ? 1 : 0;
     assign DEBUF_Layer_selc = layer_selc[5:0];
@@ -498,6 +521,20 @@
         .M_AXI_RLAST            (M_AXI_RLAST),
         .M_AXI_RUSER            (M_AXI_RUSER),
         .M_AXI_RVALID           (M_AXI_RVALID),
-        .M_AXI_RREADY           (M_AXI_RREADY_yolo_output_process)
+        .M_AXI_RREADY           (M_AXI_RREADY_yolo_output_process),
+
+        //--------------------ILA------------------------
+        .Current_state          (output_process_Current_state),
+        .Next_state             (output_process_Next_state),
+        .CREAD_state            (output_process_CREAD_state),
+        .NREAD_state            (output_process_NREAD_state),
+        .CWRITE_state           (output_process_CWRITE_state),
+        .NWRITE_state           (output_process_NWRITE_state),
+        .PROCESS_point_state_finish(PROCESS_point_state_finish),
+        .PROCESS_iou_state_finish  (PROCESS_iou_state_finish  ),
+        .PROCESS_write_state_finish(PROCESS_write_state_finish),
+        .INST_state_finish(INST_state_finish),
+        .rst(rst),
+        .already_finish_lock(already_finish_lock)
     );
 	endmodule
